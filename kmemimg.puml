@@ -1,0 +1,57 @@
+@startuml
+
+together {
+    interface Command<S> {
+        execute(system: S): Unit
+    }
+    note bottom of Command
+        // Transfer $20 between accounts
+        bank[from].balance -= 20
+        bank[to].balance += 20
+    end note
+
+    interface Query<S> {
+        execute(system: S): Any?
+    }
+    note bottom of Query
+        // Names of accounts with a $70 balance
+        bank.accounts.values
+            .filter { it.balance == 70 }
+            .map { it.name }
+            .toSet()
+    end note
+}
+
+together {
+    interface EventSourcing<S> {
+        allCommands(): Iterable<Command<S>>
+        append(command: Command<S>)
+    }
+    note bottom of EventSourcing
+        - Stores all commands (events)
+           on persistent storage
+        - In-memory state reconstructed
+           by replaying stored commands
+    end note
+    interface TxMgr {
+        + begin(): Unit
+        + remember(who: Any, what: String, value: T, undo: (T) -> Unit): Unit
+        + rollback(): Unit
+    }
+    note bottom of TxMgr
+        A poor man's STM:
+        Mutable objects opt in to
+        thread-local transactions
+    end note
+}
+
+class MemoryImage<S> {
+    + execute(command: Command<S>)
+    + execute(query: Query<S>)
+}
+MemoryImage ..> Command: runs >
+MemoryImage ..> Query: runs >
+MemoryImage --> EventSourcing: persists commands with >
+MemoryImage --> TxMgr: ensures integrity through >
+
+@enduml
