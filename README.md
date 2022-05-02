@@ -95,6 +95,7 @@ class MemImgTest {
         }
     }
 
+    // In-memory, non-persistent event sourcing
     object BankSerializer : EventSourcing<Bank> {
         private val buffer = mutableListOf<Command<Bank>>()
         override fun allCommands(): Iterable<Command<Bank>> = buffer
