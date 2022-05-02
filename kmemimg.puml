@@ -6,8 +6,8 @@ together {
     }
     note bottom of Command
         // Transfer $20 between accounts
-        bank[from].balance -= 20
         bank[to].balance += 20
+        bank[from].balance -= 20
     end note
 
     interface Query<S> {
