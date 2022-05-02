@@ -45,7 +45,7 @@ class MemImgTest {
     // Or system class
     data class Bank(val accounts: MutableMap<String, Account> = HashMap())
 
-    // Convenience mix-in to simplify interaction w/tx manage
+    // Convenience mix-in to simplify interaction w/tx manager
     interface TxParticipant {
         fun <T> remember(property: KMutableProperty0<T>) {
             TxManager.remember(this, property.name, property.get(), property::set)
