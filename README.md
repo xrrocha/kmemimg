@@ -35,6 +35,8 @@ class MemImg<S>(val system: S, eventSourcing: EventSourcing<S>, txMgr: TxMgr) {
 
 ## A Simple Example: Bank Accounts
 
+![Bank](bank.png)
+
 ```kotlin
 typealias Amount = BigDecimal
 
