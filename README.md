@@ -38,11 +38,11 @@ class MemImg<S>(val system: S, eventSourcing: EventSourcing<S>, txMgr: TxMgr) {
 ![Bank](bank.png)
 
 ```kotlin
+
 typealias Amount = BigDecimal
 
 class MemImgTest {
 
-    // Or system class
     data class Bank(val accounts: MutableMap<String, Account> = HashMap())
 
     // Convenience mix-in to simplify interaction w/tx manager
@@ -98,7 +98,7 @@ class MemImgTest {
     }
 
     // In-memory, non-persistent event sourcing
-    object BankSerializer : EventSourcing<Bank> {
+    object BankEventSourcing : EventSourcing<Bank> {
         private val buffer = mutableListOf<Command<Bank>>()
         override fun allCommands(): Iterable<Command<Bank>> = buffer
         override fun append(command: Command<Bank>) { buffer += command }
@@ -108,7 +108,7 @@ class MemImgTest {
     fun doIt() {
 
         val bank1 = Bank()
-        val memimg1 = MemImg(bank1, BankSerializer)
+        val memimg1 = MemImg(bank1, BankEventSourcing)
 
         memimg1.execute(CreateAccount("janet", "Janet Doe"))
         assertEquals(Amount.ZERO, bank1.accounts["janet"]!!.balance)
@@ -130,7 +130,7 @@ class MemImgTest {
         assertEquals(Amount("70"), bank1.accounts["john"]!!.balance)
 
         val bank2 = Bank()
-        val memimg2 = MemImg(bank2, BankSerializer)
+        val memimg2 = MemImg(bank2, BankEventSourcing)
         // Look ma: system state restored from empty initial state and event sourcing!
         assertEquals(Amount("70"), bank2.accounts["janet"]!!.balance)
         assertEquals(Amount("70"), bank2.accounts["john"]!!.balance)
