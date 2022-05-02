@@ -1,7 +1,12 @@
 @startuml
-class Bank {
+skinparam class {
+    BackgroundColor<<Domain>> Wheat
+    BorderColor<<Domain>> Tomato
 }
-class Account {
+
+class Bank <<Domain>> {
+}
+class Account <<Domain>> {
     + id: String
     + name: String
     + balance: Amount
