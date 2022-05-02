@@ -54,7 +54,9 @@ class MemImg<S>(
 ) {
 
     init {
-        eventSourcing.allCommands().forEach { command -> command.execute(system) }
+        synchronized(this) {
+            eventSourcing.allCommands().forEach { command -> command.execute(system) }
+        }
     }
 
     // TODO Make commands available to listeners (e.g. continuous queries)

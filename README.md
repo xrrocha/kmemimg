@@ -11,7 +11,9 @@ pattern:
 class MemImg<S>(val system: S, eventSourcing: EventSourcing<S>, txMgr: TxMgr) {
 
     init {
-        eventSourcing.allCommands().forEach { command -> command.execute(system) }
+        synchronized(this) {
+            eventSourcing.allCommands().forEach { command -> command.execute(system) }
+        }
     }
 
     // Commands modify the state of the system
