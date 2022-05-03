@@ -1,7 +1,9 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.6.20"
+    val kotlinVersion = "1.6.20"
+    kotlin("jvm") version kotlinVersion
+    kotlin("plugin.serialization") version kotlinVersion
 }
 
 group = "hispania"
@@ -12,6 +14,9 @@ repositories {
 }
 
 dependencies {
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
+
     testImplementation(kotlin("test"))
 }
 

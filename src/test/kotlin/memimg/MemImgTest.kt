@@ -2,82 +2,34 @@ package memimg
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.math.BigDecimal
-import kotlin.reflect.KMutableProperty0
+import java.io.File
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
-typealias Amount = BigDecimal
-
 class MemImgTest {
 
-    data class Bank(val accounts: MutableMap<String, Account> = HashMap())
-
-    // Convenience mix-in to simplify interaction w/tx manager
-    interface TxParticipant {
-        fun <T> remember(property: KMutableProperty0<T>) {
-            TxManager.remember(this, property.name, property.get(), property::set)
+    companion object {
+        init {
+            initLogger()
         }
-    }
-
-    data class Account(val id: String, val name: String) : TxParticipant {
-        var balance: Amount = BigDecimal.ZERO
-            internal set(value) {
-                require(value > Amount.ZERO) {
-                    "Can't have negative balance: $balance would become $value!"
-                }
-                // Remember value at start of transaction so as to rollback if needed
-                remember(this::balance)
-                field = value
-            }
-    }
-
-    data class CreateAccount(val id: String, val name: String) : Command<Bank> {
-        override fun execute(system: Bank) {
-            system.accounts[id] = Account(id, name)
-        }
-    }
-
-    abstract class AccountCommand(private val accountId: String) : Command<Bank> {
-        abstract fun execute(account: Account)
-        final override fun execute(system: Bank) {
-            execute(system.accounts[accountId]!!)
-        }
-    }
-
-    data class Deposit(val accountId: String, val amount: Amount) : AccountCommand(accountId) {
-        override fun execute(account: Account) {
-            account.balance += amount
-        }
-    }
-
-    data class Withdrawal(val accountId: String, val amount: Amount) : AccountCommand(accountId) {
-        override fun execute(account: Account) {
-            account.balance -= amount
-        }
-    }
-
-    data class Transfer(val fromAccountId: String, val toAccountId: String, val amount: Amount) : Command<Bank> {
-        override fun execute(system: Bank) {
-            // Operation order deliberately set to require rollback!
-            Deposit(toAccountId, amount).execute(system)
-            Withdrawal(fromAccountId, amount).execute(system)
-        }
-    }
-
-    // In-memory, non-persistent event sourcing
-    object BankEventSourcing : EventSourcing<Bank> {
-        private val buffer = mutableListOf<Command<Bank>>()
-        override fun allCommands(): Iterable<Command<Bank>> = buffer
-        override fun append(command: Command<Bank>) { buffer += command }
     }
 
     @Test
-    fun doIt() {
+    fun runsWithMemoryEventSourcing() {
+        doTest(InMemoryBankEventSourcing)
+    }
+
+    @Test
+    fun runsWithJsonFileEventSourcing() {
+        val file = File.createTempFile("bank", ".json")
+        doTest(JsonFileBankEventSourcing(file))
+        println(file.readText())
+    }
+
+    private fun doTest(eventSourcing: EventSourcing<Bank>) {
 
         val bank1 = Bank()
-        val memimg1 = MemImg(bank1, BankEventSourcing)
-
+        val memimg1 = MemImg(bank1, eventSourcing)
         memimg1.execute(CreateAccount("janet", "Janet Doe"))
         assertEquals(Amount.ZERO, bank1.accounts["janet"]!!.balance)
 
@@ -97,8 +49,12 @@ class MemImgTest {
         assertEquals(Amount("70"), bank1.accounts["janet"]!!.balance)
         assertEquals(Amount("70"), bank1.accounts["john"]!!.balance)
 
+        if (eventSourcing is AutoCloseable) {
+            eventSourcing.close()
+        }
+
         val bank2 = Bank()
-        val memimg2 = MemImg(bank2, BankEventSourcing)
+        val memimg2 = MemImg(bank2, eventSourcing)
         // Look ma: system state restored from empty initial state and event sourcing!
         assertEquals(Amount("70"), bank2.accounts["janet"]!!.balance)
         assertEquals(Amount("70"), bank2.accounts["john"]!!.balance)
@@ -121,5 +77,9 @@ class MemImgTest {
         // Look ma: system state restored on failure after partial mutation
         assertEquals(Amount("70"), bank2.accounts["janet"]!!.balance)
         assertEquals(Amount("70"), bank2.accounts["john"]!!.balance)
+
+        if (eventSourcing is AutoCloseable) {
+            eventSourcing.close()
+        }
     }
 }

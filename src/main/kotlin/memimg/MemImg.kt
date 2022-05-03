@@ -1,8 +1,8 @@
 package memimg
 
-import java.util.logging.LogManager
 import java.util.logging.Logger
 import kotlin.concurrent.getOrSet
+import kotlin.reflect.KMutableProperty0
 
 interface Command<S> {
     fun execute(system: S)
@@ -13,7 +13,7 @@ interface Query<S> {
 }
 
 interface EventSourcing<S> {
-    fun allCommands(): Iterable<Command<S>>
+    fun allCommands(): Sequence<Command<S>>
     fun append(command: Command<S>)
 }
 
@@ -26,7 +26,7 @@ object TxManager {
     }
 
     fun <T> remember(who: Any, what: String, value: T, undo: (T) -> Unit) {
-        journal.get().computeIfAbsent(Pair(who, what)) { { undo(value) } }
+        journal.getOrSet { mutableMapOf() }.computeIfAbsent(Pair(who, what)) { { undo(value) } }
     }
 
     fun rollback() {
@@ -48,10 +48,14 @@ object TxManager {
     }
 }
 
-class MemImg<S>(
-    private val system: S,
-    private val eventSourcing: EventSourcing<S>
-) {
+// Convenience mix-in to simplify interaction w/tx manager
+interface TxParticipant {
+    fun <T> remember(property: KMutableProperty0<T>) {
+        TxManager.remember(this, property.name, property.get(), property::set)
+    }
+}
+
+class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing<S>) {
 
     init {
         synchronized(this) {
@@ -76,16 +80,7 @@ class MemImg<S>(
     fun execute(query: Query<S>) = query.execute(system)
 
     companion object {
-        private var logger: Logger
-
-        init {
-            LogManager.getLogManager().readConfiguration(openResource("logging.properties"))
-            logger = Logger.getLogger("MemoryImage")
-        }
-
-        private fun openResource(resourceName: String) =
-            this::class.java.classLoader.getResourceAsStream(resourceName)
-                ?: throw java.lang.IllegalArgumentException("No such resource: $resourceName")
+        private var logger = Logger.getLogger("MemoryImage")
     }
 }
 
