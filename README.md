@@ -100,6 +100,7 @@ class MemImgTest {
     }
 
     // In-memory, non-persistent event sourcing
+    // See JsonFileBankEventSourcing for the real thing
     object BankEventSourcing : EventSourcing<Bank> {
         private val buffer = mutableListOf<Command<Bank>>()
         override fun allCommands(): Iterable<Command<Bank>> = buffer
