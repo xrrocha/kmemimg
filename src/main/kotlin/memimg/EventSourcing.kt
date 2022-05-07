@@ -4,7 +4,12 @@ import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
 
-abstract class LineFileEventSourcing<S>(private val file: File) : EventSourcing<S> {
+interface EventSourcing<S> {
+    fun allCommands(): Sequence<Command<S>>
+    fun append(command: Command<S>)
+}
+
+abstract class FileEventSourcing<S>(private val file: File) : EventSourcing<S> {
 
     private val out: PrintWriter
 

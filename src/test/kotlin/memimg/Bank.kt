@@ -23,17 +23,11 @@ typealias Amount = BigDecimal
 data class Bank(val accounts: MutableMap<String, Account> = HashMap())
 
 @Serializable
-data class Account(val id: String, val name: String) : TxParticipant {
+data class Account(val id: String, val name: String) {
     @Contextual
-    var balance: Amount = BigDecimal.ZERO
-        internal set(value) {
-            require(value > Amount.ZERO) {
-                "Can't have negative balance: $balance would become $value!"
-            }
-            // Remember value at start of transaction so as to rollback if needed
-            remember(this::balance)
-            field = value
-        }
+    var balance: Amount by TxDelegate(Amount.ZERO) { newBalance ->
+        require(newBalance >= Amount.ZERO) { "Can't have negative balance: $newBalance" }
+    }
 }
 
 @Serializable
@@ -109,7 +103,7 @@ val bankJsonFormat = Json {
     }
 }
 
-class JsonFileBankEventSourcing(file: File) : LineFileEventSourcing<Bank>(file) {
+class JsonFileBankEventSourcing(file: File) : FileEventSourcing<Bank>(file) {
     override fun parse(string: String): Command<Bank> = bankJsonFormat.decodeFromString(string)
     override fun format(command: Command<Bank>): String = bankJsonFormat.encodeToString(command)
 }
