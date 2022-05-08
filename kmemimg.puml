@@ -1,8 +1,8 @@
 @startuml
 
 together {
-    interface Command<S> {
-        execute(system: S): Unit
+    interface Command {
+        execute(system: Any): Unit
     }
     note bottom of Command
         // Transfer $20 between accounts
@@ -10,11 +10,11 @@ together {
         bank[from].balance -= 20
     end note
 
-    interface Query<S> {
-        execute(system: S): Any?
+    interface Query {
+        execute(system: Any): Any?
     }
     note bottom of Query
-        // Names of accounts with a $70 balance
+        // Names for accounts with a $70 balance
         bank.accounts.values
             .filter { it.balance == 70 }
             .map { it.name }
@@ -23,9 +23,9 @@ together {
 }
 
 together {
-    interface EventSourcing<S> {
-        allCommands(): Iterable<Command<S>>
-        append(command: Command<S>)
+    interface EventSourcing {
+        <E> replay(eventConsumer: (E) -> Unit): Unit
+        append(event: Any): Unit
     }
     note bottom of EventSourcing
         - Stores all commands (events)
@@ -40,14 +40,14 @@ together {
     }
     note bottom of TxMgr
         A poor man's STM:
-        Mutable objects opt in to
-        thread-local transactions
+        Mutable properties participate
+        in thread-local transactions
     end note
 }
 
-class MemoryImage<S> {
-    + execute(command: Command<S>)
-    + execute(query: Query<S>)
+class MemoryImage {
+    + execute(command: Command)
+    + execute(query: Query)
 }
 MemoryImage ..> Command: runs >
 MemoryImage ..> Query: runs >
