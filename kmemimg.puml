@@ -11,8 +11,8 @@ MemoryImage --> TxMgr: keeps integrity through >
 
 together {
     interface EventSourcing {
-        <E> replay(eventConsumer: (E) -> Unit)
         append(event: Any)
+        <E> replay(eventConsumer: (E) -> Unit)
     }
     note bottom of EventSourcing
         - Stores all events on persistent storage
