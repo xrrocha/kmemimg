@@ -50,7 +50,8 @@ together {
 }
 
 class Transfer implements BankCommand {
-    + accountId: String
+    + fromAccountId: String
+    + toAccountId: String
     + amount: Amount
 }
 Transfer ..> Deposit: delegates to >
