@@ -7,31 +7,29 @@ A simple Kotlin implementation of the
 pattern:
 
 ```kotlin
-// General idea; actual impl differs somewhat
-class MemImg<S>(val system: S, eventSourcing: EventSourcing<S>, txMgr: TxMgr) {
+class MemImg(private val system: Any, 
+             private val eventSourcing: EventSourcing) {
 
     init {
         synchronized(this) {
-            eventSourcing.allCommands().forEach { command -> command.execute(system) }
+            eventSourcing.replay<Command> { e -> e.execute(system) }
         }
     }
 
-    // Commands modify the state of the system
-    // Mutable objects participate of transactions
-    fun execute(command: Command<S>) =
-        synchronized(this) { // Single-threaded, lightning-fast
-            txMgr.begin()
+    fun execute(command: Command): Unit =
+        synchronized(this) {
+            TxManager.begin()
             try {
                 command.execute(system)
                 eventSourcing.append(command)
-                // Look ma: no need for commit()
             } catch (e: Exception) {
-                txMgr.rollback()
+                TxManager.rollback()
+                logger.severe("Error in command: ${e.message}")
                 throw e
             }
         }
 
-    fun execute(query: Query<S>) = query.execute(system)
+    fun execute(query: Query): Any? = query.execute(system)
 }
 ```
 

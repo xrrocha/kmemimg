@@ -4,52 +4,54 @@ skinparam class {
     BorderColor<<Domain>> Tomato
 }
 
-class Bank <<Domain>> {
-}
-class Account <<Domain>> {
-    + id: String
-    + name: String
-    + balance: Amount
-}
-Bank "1" *--> "0..*" Account
-
-interface Command<S> {
-    + execute(system: S)
+interface Command {
+    + execute(system: Any)
 }
 
-abstract class BankCommand<Bank>
-Command <|.. BankCommand
-BankCommand ..> Bank: modifies >
+together {
+    class Bank <<Domain>> {
+    }
+    class Account <<Domain>> {
+        + id: String
+        + name: String
+        + balance: Amount
+    }
+    Bank "1" *--> "0..*" Account
+}
+
+    interface BankCommand {
+        + execute(bank: Bank)
+    }
+    Command <|.. BankCommand
+    BankCommand ..> Bank: modifies >
 
 class CreateAccount {
     + id: String
     + name: String
 }
 BankCommand <|-- CreateAccount
+CreateAccount ..> Account: creates >
 
-abstract class AccountCommand {
-    + accountId: String
-    + execute(account: Account)
-    + execute(system: Bank)
-}
-BankCommand <|-- AccountCommand
-AccountCommand ..> Account: modifies >
+together {
 
-class Deposit extends AccountCommand {
-    + accountId: String
-    + amount: Amount
-}
+    together {
+    class Deposit extends BankCommand {
+        + accountId: String
+        + amount: Amount
+    }
 
-class Withdrawal extends AccountCommand {
-    + accountId: String
-    + amount: Amount
-}
+    class Withdrawal extends BankCommand {
+        + accountId: String
+        + amount: Amount
+    }
 
-class Transfer extends AccountCommand {
-    + accountId: String
-    + amount: Amount
+    class Transfer extends BankCommand {
+        + accountId: String
+        + amount: Amount
+    }
+    Transfer ..> Deposit: uses >
+    Transfer ..> Withdrawal: uses >
+    }
 }
-Transfer ..> Deposit: uses >
-Transfer ..> Withdrawal: uses >
 
 @enduml

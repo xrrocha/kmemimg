@@ -35,7 +35,7 @@ together {
     end note
     interface TxMgr {
         + begin(): Unit
-        + remember(who: Any, what: String, value: T, undo: (T) -> Unit): Unit
+        + <T> remember(who, what, value: T, undo: (T) -> Unit): Unit
         + rollback(): Unit
     }
     note bottom of TxMgr
