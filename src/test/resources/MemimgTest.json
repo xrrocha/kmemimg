@@ -1,0 +1,9 @@
+[
+  {"type":"memimg.CreateAccount","id":"janet","name":"Janet Doe"},
+  {"type":"memimg.Deposit","accountId":"janet","amount":"100"},
+  {"type":"memimg.Withdrawal","accountId":"janet","amount":"10"},
+  {"type":"memimg.CreateAccount","id":"john","name":"John Doe"},
+  {"type":"memimg.Deposit","accountId":"john","amount":"50"},
+  {"type":"memimg.Transfer","fromAccountId":"janet","toAccountId":"john","amount":"20"},
+  {"type":"memimg.Transfer","fromAccountId":"john","toAccountId":"janet","amount":"10"}
+]
