@@ -5,7 +5,7 @@ skinparam class {
 }
 
 interface Command {
-    + executeOn(system: Any)
+    + applyTo(system: Any)
 }
 
 together {
@@ -20,22 +20,23 @@ together {
 }
 
     interface BankCommand {
-        + executeOn(bank: Bank)
+        + applyTo(bank: Bank)
     }
-    Command <|.. BankCommand
+    Command <|-- BankCommand
+    BankCommand ..> Bank: modifies >
 
 class CreateAccount {
     + id: String
     + name: String
 }
-BankCommand <|-- CreateAccount
+BankCommand <|.. CreateAccount
 CreateAccount ..> Account: creates >
 
 together {
     interface AccountCommand {
-        + executeOn(account: Account)
+        + applyTo(account: Account)
     }
-    BankCommand <|-- AccountCommand
+    BankCommand <|.. AccountCommand
     AccountCommand ..> Account: modifies >
     class Deposit extends AccountCommand {
         + accountId: String
@@ -48,7 +49,7 @@ together {
     }
 }
 
-class Transfer extends BankCommand {
+class Transfer implements BankCommand {
     + accountId: String
     + amount: Amount
 }

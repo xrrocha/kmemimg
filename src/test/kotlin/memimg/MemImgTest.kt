@@ -7,23 +7,14 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 
 class MemImgTest {
-
-    companion object {
-        init {
-            initLogger()
-        }
-    }
-
     @Test
-    fun `runs with JSON file event sourcing`() {
+    fun `Builds and restores systems state with JSON file event sourcing`() {
         val file = File.createTempFile("bank", ".json")
-        `builds and restores domain model state`(LineFileEventSourcing(file, BankJsonConverter))
-        println(file.readText())
-    }
+        val eventSourcing = LineFileEventSourcing(file, BankJsonConverter)
 
-    private fun `builds and restores domain model state`(eventSourcing: EventSourcing) {
         val bank1 = Bank()
         val memimg1 = MemImg(bank1, eventSourcing)
+
         memimg1.execute(CreateAccount("janet", "Janet Doe"))
         assertEquals(Amount.ZERO, bank1.accounts["janet"]!!.balance)
 
@@ -47,13 +38,14 @@ class MemImgTest {
 
         val bank2 = Bank()
         val memimg2 = MemImg(bank2, eventSourcing)
+
         // Look ma: system state restored from empty initial state and event sourcing!
         assertEquals(Amount(70), bank2.accounts["janet"]!!.balance)
         assertEquals(Amount(70), bank2.accounts["john"]!!.balance)
 
         // Some random query; executes at in-memory speeds
         val accountsWith70 = memimg2.execute(object : BankQuery {
-            override fun executeOn(bank: Bank) =
+            override fun extractFrom(bank: Bank) =
                 bank.accounts.values
                     .filter { it.balance == Amount(70) }
                     .map { it.name }
@@ -75,5 +67,11 @@ class MemImgTest {
         assertEquals(Amount(60), bank2.accounts["john"]!!.balance)
 
         memimg2.close()
+    }
+
+    companion object {
+        init {
+            initLogger()
+        }
     }
 }

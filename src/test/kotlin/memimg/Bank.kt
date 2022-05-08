@@ -27,26 +27,26 @@ data class Account(val id: String, val name: String) {
 
 /* 2) Application commands: Deposit, Withdrawal, Transfer */
 interface BankCommand : Command {
-    fun executeOn(bank: Bank)
-    override fun executeOn(system: Any) = executeOn(system as Bank)
+    fun applyTo(bank: Bank)
+    override fun applyTo(system: Any) = applyTo(system as Bank)
 }
 
 interface BankQuery : Query {
-    fun executeOn(bank: Bank): Any?
-    override fun executeOn(system: Any) = executeOn(system as Bank)
+    fun extractFrom(bank: Bank): Any?
+    override fun extractFrom(system: Any) = extractFrom(system as Bank)
 }
 
 interface AccountCommand : BankCommand {
     val accountId: String
     fun executeOn(account: Account)
-    override fun executeOn(bank: Bank) {
+    override fun applyTo(bank: Bank) {
         executeOn(bank.accounts[accountId]!!)
     }
 }
 
 @Serializable
 data class CreateAccount(val id: String, val name: String) : BankCommand {
-    override fun executeOn(bank: Bank) {
+    override fun applyTo(bank: Bank) {
         bank.accounts[id] = Account(id, name)
     }
 }
@@ -68,10 +68,10 @@ data class Withdrawal(override val accountId: String, @Contextual val amount: Am
 @Serializable
 data class Transfer(val fromAccountId: String, val toAccountId: String, @Contextual val amount: Amount) :
     BankCommand {
-    override fun executeOn(bank: Bank) {
+    override fun applyTo(bank: Bank) {
         // Operation order deliberately set so as to exercise rollback...
-        Deposit(toAccountId, amount).executeOn(bank)
-        Withdrawal(fromAccountId, amount).executeOn(bank)
+        Deposit(toAccountId, amount).applyTo(bank)
+        Withdrawal(fromAccountId, amount).applyTo(bank)
     }
 }
 

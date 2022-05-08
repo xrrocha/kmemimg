@@ -1,26 +1,13 @@
 @startuml
 
-together {
-    interface Command {
-        executeOn(system: Any)
-    }
-    note bottom of Command
-        // Transfer $20 between accounts
-        bank[to].balance += 20
-        bank[from].balance -= 20
-    end note
-
-    interface Query {
-        executeOn(system: Any): Any?
-    }
-    note bottom of Query
-        // Names for accounts with a $70 balance
-        bank.accounts.values
-            .filter { it.balance == 70 }
-            .map { it.name }
-            .toSet()
-    end note
+class MemoryImage {
+    + execute(command: Command)
+    + execute(query: Query)
 }
+MemoryImage ..> Command: runs >
+MemoryImage ..> Query: runs >
+MemoryImage --> EventSourcing: persists commands with >
+MemoryImage --> TxMgr: keeps integrity through >
 
 together {
     interface EventSourcing {
@@ -43,13 +30,26 @@ together {
     end note
 }
 
-class MemoryImage {
-    + executeOn(command: Command)
-    + executeOn(query: Query)
+together {
+    interface Command {
+        applyTo(system: Any)
+    }
+    note bottom of Command
+        // Transfer $20 between accounts
+        bank[to].balance += 20
+        bank[from].balance -= 20
+    end note
+
+    interface Query {
+        extractFrom(system: Any): Any?
+    }
+    note bottom of Query
+        // Names for accounts with a $70 balance
+        bank.accounts.values
+            .filter { it.balance == 70 }
+            .map { it.name }
+            .toSet()
+    end note
 }
-MemoryImage ..> Command: runs >
-MemoryImage ..> Query: runs >
-MemoryImage --> EventSourcing: persists commands with >
-MemoryImage --> TxMgr: restores integrity through >
 
 @enduml

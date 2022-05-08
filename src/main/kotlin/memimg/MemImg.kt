@@ -3,18 +3,18 @@ package memimg
 import java.util.logging.Logger
 
 interface Command {
-    fun executeOn(system: Any)
+    fun applyTo(system: Any)
 }
 
 interface Query {
-    fun executeOn(system: Any): Any?
+    fun extractFrom(system: Any): Any?
 }
 
 class MemImg(private val system: Any, private val eventSourcing: EventSourcing) : AutoCloseable {
 
     init {
         synchronized(this) {
-            eventSourcing.replay<Command> { e -> e.executeOn(system) }
+            eventSourcing.replay<Command> { command -> command.applyTo(system) }
         }
     }
 
@@ -22,7 +22,7 @@ class MemImg(private val system: Any, private val eventSourcing: EventSourcing) 
         synchronized(this) {
             TxManager.begin()
             try {
-                command.executeOn(system)
+                command.applyTo(system)
                 eventSourcing.append(command)
             } catch (e: Exception) {
                 TxManager.rollback()
@@ -31,7 +31,7 @@ class MemImg(private val system: Any, private val eventSourcing: EventSourcing) 
             }
         }
 
-    fun execute(query: Query): Any? = query.executeOn(system)
+    fun execute(query: Query): Any? = query.extractFrom(system)
 
     override fun close() {
         if (eventSourcing is AutoCloseable) {
