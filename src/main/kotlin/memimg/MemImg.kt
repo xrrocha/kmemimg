@@ -2,23 +2,23 @@ package memimg
 
 import java.util.logging.Logger
 
-interface Command<S> {
-    fun execute(system: S)
+interface Command {
+    fun execute(system: Any)
 }
 
-interface Query<S> {
-    fun execute(system: S): Any?
+interface Query {
+    fun execute(system: Any): Any?
 }
 
-class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing): AutoCloseable {
+class MemImg(private val system: Any, private val eventSourcing: EventSourcing) : AutoCloseable {
 
     init {
         synchronized(this) {
-            eventSourcing.replay<Command<S>> { e -> e.execute(system) }
+            eventSourcing.replay<Command> { e -> e.execute(system) }
         }
     }
 
-    fun execute(command: Command<S>): Unit =
+    fun execute(command: Command): Unit =
         synchronized(this) {
             TxManager.begin()
             try {
@@ -31,7 +31,8 @@ class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing)
             }
         }
 
-    fun execute(query: Query<S>): Any? = query.execute(system)
+    fun execute(query: Query): Any? = query.execute(system)
+
     override fun close() {
         if (eventSourcing is AutoCloseable) {
             eventSourcing.close()

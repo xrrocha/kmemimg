@@ -17,7 +17,7 @@ class MemImgTest {
     @Test
     fun runsWithJsonFileEventSourcing() {
         val file = File.createTempFile("bank", ".json")
-        doTest(FileEventSourcing(file, BankJsonConverter))
+        doTest(LineFileEventSourcing(file, BankJsonConverter))
         println(file.readText())
     }
 
@@ -53,9 +53,9 @@ class MemImgTest {
         assertEquals(Amount(70), bank2.accounts["john"]!!.balance)
 
         // Some random query; executes at in-memory speeds
-        val accountsWith70 = memimg2.execute(object : Query<Bank> {
-            override fun execute(system: Bank) =
-                system.accounts.values
+        val accountsWith70 = memimg2.execute(object : BankQuery {
+            override fun execute(bank: Bank) =
+                bank.accounts.values
                     .filter { it.balance == Amount(70) }
                     .map { it.name }
                     .toSet()

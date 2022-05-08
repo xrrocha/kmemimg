@@ -17,13 +17,7 @@ object TxManager {
     }
 
     fun rollback() {
-        val retractions = journal.get()
-        if (retractions.isEmpty()) {
-            logger.finer("Nothing to undo")
-        } else {
-            logger.finer("Retracting ${retractions.size} mutations")
-        }
-        retractions.forEach { entry ->
+        journal.get().forEach { entry ->
             val (whoWhat, undo) = entry
             try {
                 undo.invoke()
@@ -35,19 +29,19 @@ object TxManager {
     }
 }
 
-class TxDelegate<T>(initialValue: T, private val validation: (T) -> Boolean) {
+class TxDelegate<T>(initialValue: T, private val isValid: (T) -> Boolean) {
     private var value: T
     private val setter: (T) -> Unit = { value -> this.value = value }
 
     init {
-        validation(initialValue)
+        require(isValid(initialValue)) { "Invalid initial value: $initialValue" }
         value = initialValue
     }
 
     operator fun getValue(thisRef: Any, property: KProperty<*>): T = value
 
     operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
-        require(validation(value)) { "Invalid value for ${property.name}: $value" }
+        require(isValid(value)) { "Invalid value for ${property.name}: $value" }
         TxManager.remember(thisRef, property.name, this.value, setter)
         setter(value)
     }

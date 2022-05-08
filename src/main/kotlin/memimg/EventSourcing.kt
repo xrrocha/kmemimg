@@ -9,12 +9,12 @@ interface EventSourcing {
     fun append(event: Any)
 }
 
-interface Converter<T> {
+interface LineConverter<T> {
     fun parse(string: String): T
     fun format(value: T): String
 }
 
-open class FileEventSourcing<T: Any, C: Converter<T>>(private val file: File, private val converter: C) :
+open class LineFileEventSourcing<T : Any, C : LineConverter<T>>(private val file: File, private val converter: C) :
     EventSourcing, AutoCloseable {
 
     private lateinit var out: PrintWriter
@@ -30,11 +30,13 @@ open class FileEventSourcing<T: Any, C: Converter<T>>(private val file: File, pr
         file.createNewFile()
     }
 
-    override fun <E> replay(eventConsumer: (E) -> Unit) = file.bufferedReader().use {
-        it.lineSequence().map(converter::parse).forEach { eventConsumer(it as E) }
+    override fun <E> replay(eventConsumer: (E) -> Unit) = file.bufferedReader().use { reader ->
+        @Suppress("UNCHECKED_CAST")
+        reader.lineSequence().map(converter::parse).forEach { eventConsumer(it as E) }
         out = PrintWriter(FileWriter(file, true), true)
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun append(event: Any) = out.println(converter.format(event as T))
 
     override fun close() {
