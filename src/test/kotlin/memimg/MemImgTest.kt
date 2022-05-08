@@ -26,7 +26,7 @@ class MemImgTest {
         println(file.readText())
     }
 
-    private fun doTest(eventSourcing: EventSourcing<Bank>) {
+    private fun doTest(eventSourcing: EventSourcing<Command<Bank>>) {
 
         val bank1 = Bank()
         val memimg1 = MemImg(bank1, eventSourcing)

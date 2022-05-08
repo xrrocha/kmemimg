@@ -10,11 +10,11 @@ interface Query<S> {
     fun execute(system: S): Any?
 }
 
-class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing<S>) {
+class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing<Command<S>>) {
 
     init {
         synchronized(this) {
-            eventSourcing.allCommands().forEach { command -> command.execute(system) }
+            eventSourcing.replay { e -> e.execute(system) }
         }
     }
 

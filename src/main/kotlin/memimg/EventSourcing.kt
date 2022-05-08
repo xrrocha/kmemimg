@@ -4,29 +4,33 @@ import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
 
-interface EventSourcing<S> {
-    fun allCommands(): Sequence<Command<S>>
-    fun append(command: Command<S>)
+interface EventSourcing<E> {
+
+    fun replay(consume: (E) -> Unit) = asSequence().forEach(consume)
+
+    fun append(event: E)
+    fun asSequence(): Sequence<E>
 }
 
-abstract class FileEventSourcing<S>(private val file: File) : EventSourcing<S> {
+abstract class FileEventSourcing<E>(private val file: File) : EventSourcing<E> {
 
     private val out: PrintWriter
 
     init {
         require(
-            (!file.exists() && file.parentFile.canWrite()) ||
-                    (file.exists() && file.canRead() && file.canWrite())
+            (file.exists() && file.canRead() && file.canWrite()) ||
+                    (!file.exists() &&
+                            (file.parentFile.canWrite() || file.parentFile.mkdirs()))
         ) {
             "Inaccessible file ${file.absolutePath}"
         }
         out = PrintWriter(FileWriter(file, true), true)
     }
 
-    protected abstract fun parse(string: String): Command<S>
-    protected abstract fun format(command: Command<S>): String
+    protected abstract fun parse(string: String): E
+    protected abstract fun format(command: E): String
 
-    override fun allCommands(): Sequence<Command<S>> = file.bufferedReader().lineSequence().map(this::parse)
+    override fun asSequence(): Sequence<E> = file.bufferedReader().lineSequence().map(this::parse)
 
-    override fun append(command: Command<S>) = out.println(format(command).replace("\n", " "))
+    override fun append(event: E) = out.println(format(event).replace("\n", " "))
 }

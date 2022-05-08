@@ -83,11 +83,11 @@ data class Transfer(
 }
 
 // In-memory, volatile, non-persistent event sourcing
-object InMemoryBankEventSourcing : EventSourcing<Bank> {
+object InMemoryBankEventSourcing : EventSourcing<Command<Bank>> {
     private val buffer = mutableListOf<Command<Bank>>()
-    override fun allCommands(): Sequence<Command<Bank>> = buffer.asSequence()
-    override fun append(command: Command<Bank>) {
-        buffer += command
+    override fun asSequence(): Sequence<Command<Bank>> = buffer.asSequence()
+    override fun append(event: Command<Bank>) {
+        buffer += event
     }
 }
 
@@ -103,7 +103,7 @@ val bankJsonFormat = Json {
     }
 }
 
-class JsonFileBankEventSourcing(file: File) : FileEventSourcing<Bank>(file) {
+class JsonFileBankEventSourcing(file: File) : FileEventSourcing<Command<Bank>>(file) {
     override fun parse(string: String): Command<Bank> = bankJsonFormat.decodeFromString(string)
     override fun format(command: Command<Bank>): String = bankJsonFormat.encodeToString(command)
 }
