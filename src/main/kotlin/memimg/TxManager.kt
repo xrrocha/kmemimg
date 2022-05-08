@@ -37,7 +37,7 @@ class TxDelegate<T>(initialValue: T, private val isValid: (T) -> Boolean) {
     operator fun getValue(thisRef: Any, property: KProperty<*>): T = value
 
     operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
-        require(isValid(value)) { "Invalid value for ${property.name}: $value" }
+        require(isValid(value)) { "Invalid value for ${thisRef::class.simpleName}.${property.name}: $value" }
         TxManager.remember(thisRef, property.name, this.value, setter)
         setter(value)
     }

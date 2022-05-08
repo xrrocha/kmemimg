@@ -66,7 +66,7 @@ class MemImgTest {
         val insufficientFunds = assertThrows<Exception> {
             memimg2.execute(Transfer("janet", "john", Amount(1000)))
         }
-        assertContains(insufficientFunds.message!!, "Invalid value for balance")
+        assertContains(insufficientFunds.message!!, "Invalid value for Account.balance")
         // Look ma: system state restored on failure after partial mutation
         assertEquals(Amount(70), bank2.accounts["janet"]!!.balance)
         assertEquals(Amount(70), bank2.accounts["john"]!!.balance)
