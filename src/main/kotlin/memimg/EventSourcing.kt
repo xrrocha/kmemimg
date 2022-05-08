@@ -14,7 +14,7 @@ interface LineConverter<T> {
     fun format(value: T): String
 }
 
-open class LineFileEventSourcing<T : Any, C : LineConverter<T>>(private val file: File, private val converter: C) :
+open class LineFileEventSourcing<E : Any, C : LineConverter<E>>(private val file: File, private val converter: C) :
     EventSourcing, AutoCloseable {
 
     private lateinit var out: PrintWriter
@@ -37,7 +37,7 @@ open class LineFileEventSourcing<T : Any, C : LineConverter<T>>(private val file
     }
 
     @Suppress("UNCHECKED_CAST")
-    override fun append(event: Any) = out.println(converter.format(event as T))
+    override fun append(event: Any) = out.println(converter.format(event as E))
 
     override fun close() {
         try {
