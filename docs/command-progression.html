@@ -1,0 +1,158 @@
+<style>
+    table.history {
+        margin-left: auto;
+        margin-right: auto;
+        background-color: #ffffe0;
+        padding: 1px;
+        border-style: groove;
+        border-collapse: collapse;
+    }
+    th.history {
+        text-align: center;
+        background-color: #bdb76b;
+    }
+    td.history {
+        border: 1px solid black;
+    }
+    table.state {
+        margin-left: auto;
+        margin-right: auto;
+        border: 2px solid black;
+        border-collapse: collapse;
+        vertical-align: top;
+        background-color: lightblue;
+     }
+    td.command {
+        font-weight: bold;
+    }
+    td.state, th.state {
+        padding-left: 4px;
+        border: 1px solid black;
+    }
+    td.amount {
+        text-align: right;
+    }
+</style>
+<table class="history">
+    <tr>
+        <th class="history">Command</th>
+        <th class="history">Resulting State</th>
+    </tr>
+    <tr>
+        <td class="command"><code>CreateAccount(id = "janet", name = "Janet Doe")</code></td>
+        <td>
+            `<table class="state">
+                <tr>
+                    <th>Id</th>
+                    <th>Name</th>
+                    <th>Balance</th>
+                </tr>
+                <tr>
+                    <td class="state">janet</td>
+                    <td  class="state">Janet Doe</td>
+                    <td class="state amount">$0</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td class="command"><code>Deposit(accountId = "janet", amount = 100)</code></td>
+        <td>
+            `<table class="state">
+                <tr>
+                    <th class="state">Id</th>
+                    <th class="state">Name</th>
+                    <th class="state">Balance</th>
+                </tr>
+                <tr>
+                    <td class="state">janet</td>
+                    <td  class="state">Janet Doe</td>
+                    <td class="state amount">$100</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td class="command"><code>Withdrawal(accountId = "janet", amount = 10)</code></td>
+        <td>
+            `<table class="state">
+                <tr>
+                    <th class="state">Id</th>
+                    <th class="state">Name</th>
+                    <th class="state">Balance</th>
+                </tr>
+                <tr>
+                    <td class="state">janet</td>
+                    <td  class="state">Janet Doe</td>
+                    <td class="state amount">$90</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td class="command"><code>CreateAccount(accountId = "john", name = "John Doe")</code></td>
+        <td>
+            `<table class="state">
+                <tr>
+                    <th class="state">Id</th>
+                    <th class="state">Name</th>
+                    <th class="state">Balance</th>
+                </tr>
+                <tr>
+                    <td class="state">janet</td>
+                    <td  class="state">Janet Doe</td>
+                    <td class="state amount">$90</td>
+                </tr>
+                <tr>
+                    <td class="state">john</td>
+                    <td  class="state">John Doe</td>
+                    <td class="state amount">$0</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td class="command"><code>Deposit(accountId = "john", amount = 50)</code></td>
+        <td>
+            `<table class="state">
+                <tr>
+                    <th class="state">Id</th>
+                    <th class="state">Name</th>
+                    <th class="state">Balance</th>
+                </tr>
+                <tr>
+                    <td class="state">janet</td>
+                    <td  class="state">Janet Doe</td>
+                    <td class="state amount">$90</td>
+                </tr>
+                <tr>
+                    <td class="state">john</td>
+                    <td  class="state">John Doe</td>
+                    <td class="state amount">$50</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td class="command"><code>Transfer(fromAccountId = "janet", toAccountId = "john", amount = 20)</code></td>
+        <td>
+            `<table class="state">
+                <tr>
+                    <th class="state">Id</th>
+                    <th class="state">Name</th>
+                    <th class="state">Balance</th>
+                </tr>
+                <tr>
+                    <td class="state">janet</td>
+                    <td  class="state">Janet Doe</td>
+                    <td class="state amount">$70</td>
+                </tr>
+                <tr>
+                    <td class="state">john</td>
+                    <td  class="state">John Doe</td>
+                    <td class="state amount">$70</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

@@ -1,0 +1,40 @@
+@startuml
+
+class MemoryImageProcessor {
+    + execute(command: Command)
+    + execute(query: Query)
+}
+MemoryImageProcessor ..> Command: runs >
+MemoryImageProcessor ..> Query: runs >
+MemoryImageProcessor --> EventSourcing: persists commands with >
+
+interface Command {
+    applyTo(system: Any)
+}
+note bottom of Command
+    // Transfer $20 between accounts
+    bank[to].balance += 20
+    bank[from].balance -= 20
+end note
+
+interface Query {
+    extractFrom(system: Any): Any?
+}
+note bottom of Query
+    // Names for accounts with a $70 balance
+    bank.accounts.values
+        .filter { it.balance == 70 }
+        .map { it.name }
+        .toSet()
+end note
+interface EventSourcing {
+    append(event: Any)
+    <E> replay(eventConsumer: (E) -> Unit)
+}
+note bottom of EventSourcing
+    - Stores all events on persistent storage
+    - In-memory state is reconstructed by
+       replaying persisted events
+end note
+
+@enduml

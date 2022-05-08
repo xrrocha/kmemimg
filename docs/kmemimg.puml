@@ -1,13 +1,13 @@
 @startuml
 
-class MemoryImage {
+class MemoryImageProcessor {
     + execute(command: Command)
     + execute(query: Query)
 }
-MemoryImage ..> Command: runs >
-MemoryImage ..> Query: runs >
-MemoryImage --> EventSourcing: persists commands with >
-MemoryImage --> TxMgr: keeps integrity through >
+MemoryImageProcessor ..> Command: runs >
+MemoryImageProcessor ..> Query: runs >
+MemoryImageProcessor --> EventSourcing: persists commands with >
+MemoryImageProcessor --> TxMgr: keeps integrity through >
 
 together {
     interface EventSourcing {
@@ -26,7 +26,7 @@ together {
     }
     note bottom of TxMgr
         A poor man's STM: Mutable properties participate
-        in thread-local, undoable transactions
+        in thread-local transactions
     end note
 }
 

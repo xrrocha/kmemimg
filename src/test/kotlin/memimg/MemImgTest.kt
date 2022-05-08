@@ -13,7 +13,7 @@ class MemImgTest {
         val eventSourcing = LineFileEventSourcing(file, BankJsonConverter)
 
         val bank1 = Bank()
-        val memimg1 = MemImg(bank1, eventSourcing)
+        val memimg1 = MemoryImageProcessor(bank1, eventSourcing)
 
         memimg1.execute(CreateAccount("janet", "Janet Doe"))
         assertEquals(Amount.ZERO, bank1.accounts["janet"]!!.balance)
@@ -37,7 +37,7 @@ class MemImgTest {
         memimg1.close()
 
         val bank2 = Bank()
-        val memimg2 = MemImg(bank2, eventSourcing)
+        val memimg2 = MemoryImageProcessor(bank2, eventSourcing)
 
         // Look ma: system state restored from empty initial state and event sourcing!
         assertEquals(Amount(70), bank2.accounts["janet"]!!.balance)
@@ -54,7 +54,7 @@ class MemImgTest {
         assertEquals(setOf("Janet Doe", "John Doe"), accountsWith70)
 
         // Attempt to transfer beyond means...
-        val insufficientFunds = assertThrows<Exception> {
+        val insufficientFunds = assertThrows<CommandApplicationException> {
             memimg2.execute(Transfer("janet", "john", Amount(1000)))
         }
         assertContains(insufficientFunds.message!!, "Invalid value for Account.balance")

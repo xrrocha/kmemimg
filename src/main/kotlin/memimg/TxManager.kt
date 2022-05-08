@@ -4,25 +4,34 @@ import java.util.logging.Logger
 import kotlin.concurrent.getOrSet
 import kotlin.reflect.KProperty
 
-object TxManager {
-    private val logger = Logger.getLogger("TxManager")
-    private val journal = ThreadLocal<MutableMap<Pair<Any, String>, () -> Unit>>()
+interface TxManager {
 
-    fun begin() = journal.getOrSet { mutableMapOf() }.clear()
+    fun begin()
+    fun <T> remember(who: Any, what: String, value: T, undo: (T) -> Unit)
+    fun rollback()
 
-    fun <T> remember(who: Any, what: String, value: T, undo: (T) -> Unit) =
-        journal.get().computeIfAbsent(Pair(who, what)) { { undo(value) } }
+    companion object : TxManager {
+        private val logger = Logger.getLogger("TxManager")
+        private val journal = ThreadLocal<MutableMap<Pair<Any, String>, () -> Unit>>()
 
-    fun rollback() =
-        journal.get().forEach { entry ->
-            val (whoWhat, undo) = entry
-            try {
-                undo.invoke()
-            } catch (e: Exception) {
-                val (who, what) = whoWhat
-                logger.warning("Error retracting ${who::class.simpleName}.$what: ${e.message ?: e.toString()}")
-            }
+        override fun begin() = journal.getOrSet { mutableMapOf() }.clear()
+
+        // Used by mutable properties to participate in transaction
+        override fun <T> remember(who: Any, what: String, value: T, undo: (T) -> Unit) {
+            journal.get().computeIfAbsent(Pair(who, what)) { { undo(value) } }
         }
+
+        override fun rollback() =
+            journal.get().forEach { entry ->
+                val (whoWhat, undo) = entry
+                try {
+                    undo.invoke()
+                } catch (e: Exception) {
+                    val (who, what) = whoWhat
+                    logger.warning("Error retracting ${who::class.simpleName}.$what: ${e.message ?: e.toString()}")
+                }
+            }
+    }
 }
 
 class TxDelegate<T>(initialValue: T, private val isValid: (T) -> Boolean) {

@@ -9,5 +9,5 @@ fun initLogger() {
 }
 
 fun openResource(resourceName: String): InputStream =
-    MemImg::class.java.classLoader.getResourceAsStream(resourceName)
+    MemoryImageProcessor::class.java.classLoader.getResourceAsStream(resourceName)
         ?: throw FileNotFoundException("No such resource: $resourceName")
