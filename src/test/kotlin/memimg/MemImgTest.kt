@@ -15,14 +15,13 @@ class MemImgTest {
     }
 
     @Test
-    fun runsWithJsonFileEventSourcing() {
+    fun `runs with JSON file event sourcing`() {
         val file = File.createTempFile("bank", ".json")
-        doTest(LineFileEventSourcing(file, BankJsonConverter))
+        `builds and restores domain model state`(LineFileEventSourcing(file, BankJsonConverter))
         println(file.readText())
     }
 
-    private fun doTest(eventSourcing: EventSourcing) {
-
+    private fun `builds and restores domain model state`(eventSourcing: EventSourcing) {
         val bank1 = Bank()
         val memimg1 = MemImg(bank1, eventSourcing)
         memimg1.execute(CreateAccount("janet", "Janet Doe"))
@@ -54,7 +53,7 @@ class MemImgTest {
 
         // Some random query; executes at in-memory speeds
         val accountsWith70 = memimg2.execute(object : BankQuery {
-            override fun execute(bank: Bank) =
+            override fun executeOn(bank: Bank) =
                 bank.accounts.values
                     .filter { it.balance == Amount(70) }
                     .map { it.name }

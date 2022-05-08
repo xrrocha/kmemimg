@@ -25,44 +25,53 @@ data class Account(val id: String, val name: String) {
     var balance: Amount by TxDelegate(Amount.ZERO) { it >= Amount.ZERO }
 }
 
-/* Application commands: Deposit, Withdrawal, Transfer */
+/* 2) Application commands: Deposit, Withdrawal, Transfer */
 interface BankCommand : Command {
-    fun execute(bank: Bank)
-    override fun execute(system: Any) = execute(system as Bank)
+    fun executeOn(bank: Bank)
+    override fun executeOn(system: Any) = executeOn(system as Bank)
 }
 
 interface BankQuery : Query {
-    fun execute(bank: Bank): Any?
-    override fun execute(system: Any) = execute(system as Bank)
+    fun executeOn(bank: Bank): Any?
+    override fun executeOn(system: Any) = executeOn(system as Bank)
+}
+
+interface AccountCommand : BankCommand {
+    val accountId: String
+    fun executeOn(account: Account)
+    override fun executeOn(bank: Bank) {
+        executeOn(bank.accounts[accountId]!!)
+    }
 }
 
 @Serializable
 data class CreateAccount(val id: String, val name: String) : BankCommand {
-    override fun execute(bank: Bank) {
+    override fun executeOn(bank: Bank) {
         bank.accounts[id] = Account(id, name)
     }
 }
 
 @Serializable
-data class Deposit(val accountId: String, @Contextual val amount: Amount) : BankCommand {
-    override fun execute(bank: Bank) {
-        bank.accounts[accountId]!!.balance += amount
+data class Deposit(override val accountId: String, @Contextual val amount: Amount) : AccountCommand {
+    override fun executeOn(account: Account) {
+        account.balance += amount
     }
 }
 
 @Serializable
-data class Withdrawal(val accountId: String, @Contextual val amount: Amount) : BankCommand {
-    override fun execute(bank: Bank) {
-        bank.accounts[accountId]!!.balance -= amount
+data class Withdrawal(override val accountId: String, @Contextual val amount: Amount) : AccountCommand {
+    override fun executeOn(account: Account) {
+        account.balance -= amount
     }
 }
 
 @Serializable
-data class Transfer(val fromAccountId: String, val toAccountId: String, @Contextual val amount: Amount) : BankCommand {
-    override fun execute(bank: Bank) {
-        // Operation order deliberately as to exercise rollback...
-        Deposit(toAccountId, amount).execute(bank)
-        Withdrawal(fromAccountId, amount).execute(bank)
+data class Transfer(val fromAccountId: String, val toAccountId: String, @Contextual val amount: Amount) :
+    BankCommand {
+    override fun executeOn(bank: Bank) {
+        // Operation order deliberately set so as to exercise rollback...
+        Deposit(toAccountId, amount).executeOn(bank)
+        Withdrawal(fromAccountId, amount).executeOn(bank)
     }
 }
 

@@ -8,20 +8,20 @@ pattern:
 
 ```kotlin
 class MemImg(private val system: Any, 
-             private val eventSourcing: EventSourcing) {
+             private val BankEventSourcing: EventSourcing) {
 
     init {
         synchronized(this) {
-            eventSourcing.replay<Command> { e -> e.execute(system) }
+            BankEventSourcing.replay<Command> { e -> e.executeOn(system) }
         }
     }
 
-    fun execute(command: Command): Unit =
-        synchronized(this) {
+    fun executeOn(command: Command): Unit =
+        synchronized(this) { // Single-threaded, lightning-fast
             TxManager.begin()
             try {
-                command.execute(system)
-                eventSourcing.append(command)
+                command.executeOn(system)
+                BankEventSourcing.append(command)
             } catch (e: Exception) {
                 TxManager.rollback()
                 logger.severe("Error in command: ${e.message}")
@@ -29,7 +29,7 @@ class MemImg(private val system: Any,
             }
         }
 
-    fun execute(query: Query): Any? = query.execute(system)
+    fun executeOn(query: Query): Any? = query.executeOn(system)
 }
 ```
 
@@ -38,109 +38,105 @@ class MemImg(private val system: Any,
 ![Bank](bank.png)
 
 ```kotlin
-
-typealias Amount = BigDecimal
-
 class MemImgTest {
-
+    
+    /* 1) Domain entities: Bank and Account */
+    typealias Amount = BigDecimal
+    
     data class Bank(val accounts: MutableMap<String, Account> = HashMap())
-
-    // Convenience mix-in to simplify interaction w/tx manager
-    interface TxParticipant {
-        fun <T> remember(property: KMutableProperty0<T>) {
-            TxManager.remember(this, property.name, property.get(), property::set)
+    
+    data class Account(val id: String, val name: String) {
+        var balance: Amount by TxDelegate(Amount.ZERO) { it >= Amount.ZERO }
+    }
+    
+    /* 2) Application commands: Deposit, Withdrawal, Transfer */
+    interface BankCommand : Command {
+        fun executeOn(bank: Bank)
+        override fun executeOn(system: Any) = executeOn(system as Bank)
+    }
+    interface BankQuery : Query {
+        fun executeOn(bank: Bank): Any?
+        override fun executeOn(system: Any) = executeOn(system as Bank)
+    }
+    interface AccountCommand : BankCommand {
+        val accountId: String
+        fun executeOn(account: Account)
+        override fun executeOn(bank: Bank) {
+            executeOn(bank.accounts[accountId]!!)
         }
     }
-
-    data class Account(val id: String, val name: String) : TxParticipant {
-        var balance: Amount = BigDecimal.ZERO
-            internal set(value) {
-                require(value > Amount.ZERO) {
-                    "Can't have negative balance: $balance would become $value!"
-                }
-                // Remember value at start of transaction so as to rollback if needed
-                remember(this::balance)
-                field = value
-            }
-    }
-
-    data class CreateAccount(val id: String, val name: String) : Command<Bank> {
-        override fun execute(system: Bank) {
-            system.accounts[id] = Account(id, name)
+    
+    data class CreateAccount(val id: String, val name: String) : BankCommand {
+        override fun executeOn(bank: Bank) {
+            bank.accounts[id] = Account(id, name)
         }
-    }
-
-    abstract class AccountCommand(private val accountId: String) : Command<Bank> {
-        abstract fun execute(account: Account)
-        final override fun execute(system: Bank) {
-            execute(system.accounts[accountId]!!)
-        }
-    }
-
-    data class Deposit(val accountId: String, val amount: Amount) : AccountCommand(accountId) {
-        override fun execute(account: Account) {
+    }    
+    
+    data class Deposit(override val accountId: String, val amount: Amount) : AccountCommand {
+        override fun executeOn(account: Account) {
             account.balance += amount
         }
     }
-
-    data class Withdrawal(val accountId: String, val amount: Amount) : AccountCommand(accountId) {
-        override fun execute(account: Account) {
+    
+    data class Withdrawal(override val accountId: String,val amount: Amount) : AccountCommand {
+        override fun executeOn(account: Account) {
             account.balance -= amount
         }
     }
-
-    data class Transfer(val fromAccountId: String, val toAccountId: String, val amount: Amount) : Command<Bank> {
-        override fun execute(system: Bank) {
-            // Operation order deliberately set to require rollback!
-            Deposit(toAccountId, amount).execute(system)
-            Withdrawal(fromAccountId, amount).execute(system)
+    
+    data class Transfer(val fromAccountId: String, val toAccountId: String, val amount: Amount) : BankCommand {
+        override fun executeOn(bank: Bank) {
+            // Operation order deliberately set so as to exercise rollback...
+            Deposit(toAccountId, amount).executeOn(bank)
+            Withdrawal(fromAccountId, amount).executeOn(bank)
         }
     }
 
-    // In-memory, non-persistent event sourcing
-    // See JsonFileBankEventSourcing for the real thing
-    object BankEventSourcing : EventSourcing<Bank> {
-        private val buffer = mutableListOf<Command<Bank>>()
-        override fun allCommands(): Iterable<Command<Bank>> = buffer
-        override fun append(command: Command<Bank>) { buffer += command }
+    // In-memory, volatile, non-persistent event sourcing
+    // Check actual source code for the (JSON File) real thing™
+    object BankEventSourcing : EventSourcing {
+        private val buffer = mutableListOf<Any>()
+        override fun <E> replay(eventConsumer: (E) -> Unit) = buffer.forEach{eventConsumer(it as E)}
+        override fun append(event: Any) { buffer += event }
     }
 
     @Test
-    fun doIt() {
-
+    fun `builds and restores domain model state` () {
         val bank1 = Bank()
         val memimg1 = MemImg(bank1, BankEventSourcing)
-
+        
         memimg1.execute(CreateAccount("janet", "Janet Doe"))
         assertEquals(Amount.ZERO, bank1.accounts["janet"]!!.balance)
 
-        memimg1.execute(Deposit("janet", Amount("100")))
-        assertEquals(Amount("100"), bank1.accounts["janet"]!!.balance)
+        memimg1.execute(Deposit("janet", Amount(100)))
+        assertEquals(Amount(100), bank1.accounts["janet"]!!.balance)
 
-        memimg1.execute(Withdrawal("janet", Amount("10")))
-        assertEquals(Amount("90"), bank1.accounts["janet"]!!.balance)
+        memimg1.execute(Withdrawal("janet", Amount(10)))
+        assertEquals(Amount(90), bank1.accounts["janet"]!!.balance)
 
         memimg1.execute(CreateAccount("john", "John Doe"))
         assertEquals(Amount.ZERO, bank1.accounts["john"]!!.balance)
 
-        memimg1.execute(Deposit("john", Amount("50")))
-        assertEquals(Amount("50"), bank1.accounts["john"]!!.balance)
+        memimg1.execute(Deposit("john", Amount(50)))
+        assertEquals(Amount(50), bank1.accounts["john"]!!.balance)
 
         memimg1.execute(Transfer("janet", "john", Amount(20)))
-        assertEquals(Amount("70"), bank1.accounts["janet"]!!.balance)
-        assertEquals(Amount("70"), bank1.accounts["john"]!!.balance)
+        assertEquals(Amount(70), bank1.accounts["janet"]!!.balance)
+        assertEquals(Amount(70), bank1.accounts["john"]!!.balance)
+
+        memimg1.close()
 
         val bank2 = Bank()
         val memimg2 = MemImg(bank2, BankEventSourcing)
         // Look ma: system state restored from empty initial state and event sourcing!
-        assertEquals(Amount("70"), bank2.accounts["janet"]!!.balance)
-        assertEquals(Amount("70"), bank2.accounts["john"]!!.balance)
+        assertEquals(Amount(70), bank2.accounts["janet"]!!.balance)
+        assertEquals(Amount(70), bank2.accounts["john"]!!.balance)
 
         // Some random query; executes at in-memory speeds
-        val accountsWith70 = memimg2.execute(object : Query<Bank> {
-            override fun execute(system: Bank) =
-                system.accounts.values
-                    .filter { it.balance == Amount("70") }
+        val accountsWith70 = memimg2.execute(object : BankQuery {
+            override fun executeOn(bank: Bank) =
+                bank.accounts.values
+                    .filter { it.balance == Amount(70) }
                     .map { it.name }
                     .toSet()
         })
@@ -148,12 +144,18 @@ class MemImgTest {
 
         // Attempt to transfer beyond means...
         val insufficientFunds = assertThrows<Exception> {
-            memimg2.execute(Transfer("janet", "john", Amount("1000")))
+            memimg2.execute(Transfer("janet", "john", Amount(1000)))
         }
-        assertContains(insufficientFunds.message!!, "Can't have negative balance")
+        assertContains(insufficientFunds.message!!, "Invalid value for Account.balance")
         // Look ma: system state restored on failure after partial mutation
-        assertEquals(Amount("70"), bank2.accounts["janet"]!!.balance)
-        assertEquals(Amount("70"), bank2.accounts["john"]!!.balance)
+        assertEquals(Amount(70), bank2.accounts["janet"]!!.balance)
+        assertEquals(Amount(70), bank2.accounts["john"]!!.balance)
+
+        memimg2.execute(Transfer("john", "janet", Amount(10)))
+        assertEquals(Amount(80), bank2.accounts["janet"]!!.balance)
+        assertEquals(Amount(60), bank2.accounts["john"]!!.balance)
+
+        memimg2.close()
     }
 }
 ```

@@ -5,7 +5,7 @@ skinparam class {
 }
 
 interface Command {
-    + execute(system: Any)
+    + executeOn(system: Any)
 }
 
 together {
@@ -20,10 +20,9 @@ together {
 }
 
     interface BankCommand {
-        + execute(bank: Bank)
+        + executeOn(bank: Bank)
     }
     Command <|.. BankCommand
-    BankCommand ..> Bank: modifies >
 
 class CreateAccount {
     + id: String
@@ -33,25 +32,27 @@ BankCommand <|-- CreateAccount
 CreateAccount ..> Account: creates >
 
 together {
-
-    together {
-    class Deposit extends BankCommand {
+    interface AccountCommand {
+        + executeOn(account: Account)
+    }
+    BankCommand <|-- AccountCommand
+    AccountCommand ..> Account: modifies >
+    class Deposit extends AccountCommand {
         + accountId: String
         + amount: Amount
     }
 
-    class Withdrawal extends BankCommand {
+    class Withdrawal extends AccountCommand {
         + accountId: String
         + amount: Amount
-    }
-
-    class Transfer extends BankCommand {
-        + accountId: String
-        + amount: Amount
-    }
-    Transfer ..> Deposit: uses >
-    Transfer ..> Withdrawal: uses >
     }
 }
+
+class Transfer extends BankCommand {
+    + accountId: String
+    + amount: Amount
+}
+Transfer ..> Deposit: delegates to >
+Transfer ..> Withdrawal: delegates to >
 
 @enduml

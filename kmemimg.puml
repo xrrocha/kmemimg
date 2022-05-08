@@ -2,7 +2,7 @@
 
 together {
     interface Command {
-        execute(system: Any): Unit
+        executeOn(system: Any)
     }
     note bottom of Command
         // Transfer $20 between accounts
@@ -11,7 +11,7 @@ together {
     end note
 
     interface Query {
-        execute(system: Any): Any?
+        executeOn(system: Any): Any?
     }
     note bottom of Query
         // Names for accounts with a $70 balance
@@ -24,34 +24,32 @@ together {
 
 together {
     interface EventSourcing {
-        <E> replay(eventConsumer: (E) -> Unit): Unit
-        append(event: Any): Unit
+        <E> replay(eventConsumer: (E) -> Unit)
+        append(event: Any)
     }
     note bottom of EventSourcing
-        - Stores all commands (events)
-           on persistent storage
-        - In-memory state reconstructed
-           by replaying stored commands
+        - Stores all events on persistent storage
+        - In-memory state is reconstructed by
+           replaying persisted events
     end note
     interface TxMgr {
-        + begin(): Unit
-        + <T> remember(who, what, value: T, undo: (T) -> Unit): Unit
-        + rollback(): Unit
+        + begin()
+        + <T> remember(value: T, undo: (T) -> Unit)
+        + rollback()
     }
     note bottom of TxMgr
-        A poor man's STM:
-        Mutable properties participate
-        in thread-local transactions
+        A poor man's STM: Mutable properties participate
+        in thread-local, undoable transactions
     end note
 }
 
 class MemoryImage {
-    + execute(command: Command)
-    + execute(query: Query)
+    + executeOn(command: Command)
+    + executeOn(query: Query)
 }
 MemoryImage ..> Command: runs >
 MemoryImage ..> Query: runs >
 MemoryImage --> EventSourcing: persists commands with >
-MemoryImage --> TxMgr: ensures integrity through >
+MemoryImage --> TxMgr: restores integrity through >
 
 @enduml
