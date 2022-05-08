@@ -12,7 +12,12 @@ interface EventSourcing<E> {
     fun asSequence(): Sequence<E>
 }
 
-abstract class FileEventSourcing<E>(private val file: File) : EventSourcing<E> {
+interface Converter<T> {
+    fun parse(string: String): T
+    fun format(value: T): String
+}
+
+open class FileEventSourcing<E>(private val file: File, private val converter: Converter<E>) : EventSourcing<E> {
 
     private val out: PrintWriter
 
@@ -27,10 +32,7 @@ abstract class FileEventSourcing<E>(private val file: File) : EventSourcing<E> {
         out = PrintWriter(FileWriter(file, true), true)
     }
 
-    protected abstract fun parse(string: String): E
-    protected abstract fun format(command: E): String
+    override fun asSequence(): Sequence<E> = file.bufferedReader().lineSequence().map(converter::parse)
 
-    override fun asSequence(): Sequence<E> = file.bufferedReader().lineSequence().map(this::parse)
-
-    override fun append(event: E) = out.println(format(event).replace("\n", " "))
+    override fun append(event: E) = out.println(converter.format(event).replace("\n", " "))
 }

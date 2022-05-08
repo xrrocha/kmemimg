@@ -103,7 +103,9 @@ val bankJsonFormat = Json {
     }
 }
 
-class JsonFileBankEventSourcing(file: File) : FileEventSourcing<Command<Bank>>(file) {
+object BankJsonConverter : Converter<Command<Bank>> {
     override fun parse(string: String): Command<Bank> = bankJsonFormat.decodeFromString(string)
-    override fun format(command: Command<Bank>): String = bankJsonFormat.encodeToString(command)
+    override fun format(value: Command<Bank>): String = bankJsonFormat.encodeToString(value)
 }
+
+class BankEventSourcing(file: File) : FileEventSourcing<Command<Bank>>(file, BankJsonConverter)

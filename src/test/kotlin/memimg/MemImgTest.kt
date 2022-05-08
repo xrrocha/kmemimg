@@ -22,7 +22,7 @@ class MemImgTest {
     @Test
     fun runsWithJsonFileEventSourcing() {
         val file = File.createTempFile("bank", ".json")
-        doTest(JsonFileBankEventSourcing(file))
+        doTest(BankEventSourcing(file))
         println(file.readText())
     }
 
