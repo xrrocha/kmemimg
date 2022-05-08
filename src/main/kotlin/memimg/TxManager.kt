@@ -35,19 +35,19 @@ object TxManager {
     }
 }
 
-class TxDelegate<T>(initialValue: T, private val validator: (T) -> Unit) {
+class TxDelegate<T>(initialValue: T, private val validation: (T) -> Boolean) {
     private var value: T
     private val setter: (T) -> Unit = { value -> this.value = value }
 
     init {
-        validator(initialValue)
+        validation(initialValue)
         value = initialValue
     }
 
     operator fun getValue(thisRef: Any, property: KProperty<*>): T = value
 
     operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
-        validator(value)
+        require(validation(value)) { "Invalid value for ${property.name}: $value" }
         TxManager.remember(thisRef, property.name, this.value, setter)
         setter(value)
     }

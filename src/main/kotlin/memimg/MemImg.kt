@@ -10,15 +10,15 @@ interface Query<S> {
     fun execute(system: S): Any?
 }
 
-class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing<Command<S>>) {
+class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing): AutoCloseable {
 
     init {
         synchronized(this) {
-            eventSourcing.replay { e -> e.execute(system) }
+            eventSourcing.replay<Command<S>> { e -> e.execute(system) }
         }
     }
 
-    fun execute(command: Command<S>) =
+    fun execute(command: Command<S>): Unit =
         synchronized(this) {
             TxManager.begin()
             try {
@@ -31,7 +31,12 @@ class MemImg<S>(private val system: S, private val eventSourcing: EventSourcing<
             }
         }
 
-    fun execute(query: Query<S>) = query.execute(system)
+    fun execute(query: Query<S>): Any? = query.execute(system)
+    override fun close() {
+        if (eventSourcing is AutoCloseable) {
+            eventSourcing.close()
+        }
+    }
 
     companion object {
         private var logger = Logger.getLogger("MemoryImage")
