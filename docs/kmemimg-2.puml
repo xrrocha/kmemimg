@@ -1,0 +1,46 @@
+@startuml
+skinparam class {
+    BackgroundColor<<Domain>> Wheat
+    BorderColor<<Domain>> Tomato
+}
+
+class MemoryImageProcessor {
+    + execute(command: Command)
+}
+
+interface EventSourcing {
+    append(event: Any)
+    <E> replay(eventConsumer: (E) -> Unit)
+}
+MemoryImageProcessor --> EventSourcing: persists commands with >
+note bottom of EventSourcing
+    - Stores all events on persistent storage
+    - In-memory state is reconstructed by
+       replaying persisted events
+end note
+
+interface Command {
+    applyTo(system: Any)
+}
+MemoryImageProcessor ..> Command: runs in single thread >
+
+class Bank <<Domain>> {
+}
+class Account <<Domain>> {
+    + id: String
+    + name: String
+    + balance: Amount
+}
+Bank "1" *--> "0..*" Account
+
+class Deposit implements Command {
+    + accountId: String
+    + amount: Amount
+    + applyTo(bank: Bank)
+}
+Deposit ..> Account: increments balance >
+note bottom of Deposit
+    bank[accountId].balance += amount
+end note
+
+@enduml

@@ -1,0 +1,49 @@
+@startuml
+skinparam class {
+    BackgroundColor<<Domain>> Wheat
+    BorderColor<<Domain>> Tomato
+}
+
+class MemoryImageProcessor {
+    + execute(command: Command)
+}
+
+interface TxMgr {
+    + begin()
+    + <T> remember(value: T, undo: (T) -> Unit)
+    + rollback()
+}
+MemoryImageProcessor --> TxMgr: keeps integrity through >
+note bottom of TxMgr
+    A poor man's STM: Mutable properties participate
+    in thread-local transactions
+end note
+
+interface Command {
+    applyTo(system: Any)
+}
+MemoryImageProcessor ..> Command: runs in single thread >
+
+class Bank <<Domain>> {
+}
+class Account <<Domain>> {
+    + id: String
+    + name: String
+    + balance: Amount
+}
+Bank "1" *--> "0..*" Account
+
+class Transfer implements Command {
+    + fromAccountId: String
+    + toAccountId: String
+    + amount: Amount
+    + applyTo(bank: Bank)
+}
+Transfer ..> Account: ...then increments balance >
+Transfer ..> Account: decrements balance... >
+note bottom of Transfer
+    bank[fromAccountId].balance -= amount
+    bank[toAccountId].balance += amount
+end note
+
+@enduml

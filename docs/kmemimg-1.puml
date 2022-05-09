@@ -1,0 +1,34 @@
+@startuml
+skinparam class {
+    BackgroundColor<<Domain>> Wheat
+    BorderColor<<Domain>> Tomato
+}
+
+class MemoryImageProcessor {
+    + execute(command: Command)
+}
+MemoryImageProcessor ..> Command: runs >
+
+interface Command {
+    applyTo(system: Any)
+}
+class Bank <<Domain>> {
+}
+class Account <<Domain>> {
+    + id: String
+    + name: String
+    + balance: Amount
+}
+Bank "1" *--> "0..*" Account
+
+class Deposit implements Command {
+    + accountId: String
+    + amount: Amount
+    + applyTo(bank: Bank)
+}
+Deposit ..> Account: increments balance >
+note bottom of Deposit
+    bank[accountId].balance += amount
+end note
+
+@enduml

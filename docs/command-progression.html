@@ -2,14 +2,15 @@
     table.history {
         margin-left: auto;
         margin-right: auto;
-        background-color: #ffffe0;
+        background-color: white;
         padding: 1px;
         border-style: groove;
         border-collapse: collapse;
     }
     th.history {
         text-align: center;
-        background-color: #bdb76b;
+        color: white;
+        background-color: darkblue;
     }
     td.history {
         border: 1px solid black;
@@ -20,12 +21,14 @@
         border: 2px solid black;
         border-collapse: collapse;
         vertical-align: top;
-        background-color: lightblue;
+        background-color: lightgray;
      }
     td.command {
         font-weight: bold;
+        color: navy;
     }
     td.state, th.state {
+        color: blue;
         padding-left: 4px;
         border: 1px solid black;
     }
@@ -43,9 +46,9 @@
         <td>
             `<table class="state">
                 <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Balance</th>
+                    <th class="state">Id</th>
+                    <th class="state">Name</th>
+                    <th class="state">Balance</th>
                 </tr>
                 <tr>
                     <td class="state">janet</td>

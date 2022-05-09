@@ -1,0 +1,34 @@
+@startuml
+skinparam class {
+    BackgroundColor<<Domain>> Wheat
+    BorderColor<<Domain>> Tomato
+}
+
+class MemoryImageProcessor {
+    + execute(command: Command)
+}
+
+interface Query {
+    extractFrom(system: Any): Any?
+}
+MemoryImageProcessor ..> Query: runs multi-threaded >
+note bottom of Query
+    // Names for accounts with a $70 balance
+    bank.accounts.values
+        .filter { it.balance == 70 }
+        .map { it.name }
+        .toSet()
+end note
+
+class Bank <<Domain>> {
+}
+Query ..> Bank: reads >
+
+class Account <<Domain>> {
+    + id: String
+    + name: String
+    + balance: Amount
+}
+Bank "1" *--> "0..*" Account
+
+@enduml

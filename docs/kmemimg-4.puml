@@ -1,0 +1,22 @@
+@startuml
+skinparam class {
+    BackgroundColor<<Domain>> Wheat
+    BorderColor<<Domain>> Tomato
+}
+
+class MemoryImageProcessor {
+    + execute(command: Command)
+}
+
+interface EventSourcing {
+    append(event: Any)
+    <E> replay(eventConsumer: (E) -> Unit)
+}
+MemoryImageProcessor --> EventSourcing: persists commands with >
+note right of EventSourcing::"append(event: Any)"
+    Invalidates processor on failure!
+    After correcting I/O error, restarting processor
+    requires reload of persisted commands
+end note
+
+@enduml

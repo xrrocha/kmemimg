@@ -16,6 +16,7 @@ This article presents a [simple Kotlin implementation](https://github.com/xrroch
 ![TL;DR](docs/mini-kmemimg.png)
 
 ```kotlin
+// Skeletal Kotlin TL;DR for the truly impatient:
 class MemoryImageProcessor(private val system: Any, 
                            private val eventSourcing: EventSourcing) {
     init {
@@ -80,129 +81,7 @@ This could be modeled as:
 Let's take a look at a progression of commands and the evolving system state resulting from their successive
 application:
 
-<table border="1">
-    <tr>
-        <th align="center">Command</th>
-        <th align="center">Resulting State</th>
-    </tr>
-    <tr>
-        <td valign="top"><code>CreateAccount(id = "janet", name = "Janet Doe")</code></td>
-        <td>
-            <table border="1">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Balance</th>
-                </tr>
-                <tr>
-                    <td>janet</td>
-                    <td nowrap>Janet Doe</td>
-                    <td align="right">$0</td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    <tr>
-        <td valign="top"><code>Deposit(accountId = "janet", amount = 100)</code></td>
-        <td>
-            <table border="1">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Balance</th>
-                </tr>
-                <tr>
-                    <td>janet</td>
-                    <td nowrap>Janet Doe</td>
-                    <td align="right">$100</td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    <tr>
-        <td valign="top"><code>Withdrawal(accountId = "janet", amount = 10)</code></td>
-        <td>
-            <table border="1">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Balance</th>
-                </tr>
-                <tr>
-                    <td>janet</td>
-                    <td nowrap>Janet Doe</td>
-                    <td align="right">$90</td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    <tr>
-        <td valign="top"><code>CreateAccount(accountId = "john", name = "John Doe")</code></td>
-        <td>
-            <table border="1">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Balance</th>
-                </tr>
-                <tr>
-                    <td>janet</td>
-                    <td nowrap>Janet Doe</td>
-                    <td align="right">$90</td>
-                </tr>
-                <tr>
-                    <td>john</td>
-                    <td nowrap>John Doe</td>
-                    <td align="right">$0</td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    <tr>
-        <td valign="top"><code>Deposit(accountId = "john", amount = 50)</code></td>
-        <td>
-            <table border="1">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Balance</th>
-                </tr>
-                <tr>
-                    <td>janet</td>
-                    <td nowrap>Janet Doe</td>
-                    <td align="right">$90</td>
-                </tr>
-                <tr>
-                    <td>john</td>
-                    <td nowrap>John Doe</td>
-                    <td align="right">$50</td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-    <tr>
-        <td valign="top"><code>Transfer(fromAccountId = "janet", toAccountId = "john", amount = 20)</code></td>
-        <td>
-            <table border="1">
-                <tr>
-                    <th>Id</th>
-                    <th>Name</th>
-                    <th>Balance</th>
-                </tr>
-                <tr>
-                    <td>janet</td>
-                    <td nowrap>Janet Doe</td>
-                    <td align="right">$70</td>
-                </tr>
-                <tr>
-                    <td>john</td>
-                    <td nowrap>John Doe</td>
-                    <td align="right">$70</td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-</table>
+![Bank](docs/command-progression.png)
 
 The key idea behind the memory image pattern is:
 
@@ -213,62 +92,71 @@ The key idea behind the memory image pattern is:
 Somewhat paradoxically, entity classes themselves don't need to be persisted! (But they might, for snapshotting, as 
 mentioned below.)
 
-If your application data fits into available memory and your event history fits into available disk space you're in 
-business.
+If your application data fits into available memory and your event history fits into available disk space then 
+you're in business.
 
 ## Memory Image Processor
 
 A _memory image processor_ consumes a stream of application commands by applying each incoming command to a mutable 
-object (also referred to as the _system_).
+object (here referred to as the _system_).
+
+![Bank](docs/kmemimg-1.png)
 
 Because applying commands in memory is so fast and cheap, _a memory image processor can run on a single thread_ and 
 consume incoming command sequentially with no need to provide concurrent access to its system. This removes 
 much of the complexity traditionally associated with transactions as conflicts arising from concurrent mutation 
 simply do not occur.
 
+![Bank](docs/kmemimg-2.png)
+
 Individual command application, however, _can_ fail in the midst of a transactional sequence of mutations so the memory 
 image processor still needs a way to rollback partial changes and restore system integrity in the face of invalid data
 and constraint violations.
 
+![Bank](docs/kmemimg-3.png)
+
 Incoming commands should only be serialized upon successful completion. Obviously, if command serialization
-fail, the memory image processor will stop processing further commands until command serialization is
+fails, the memory image processor will stop processing further commands until command serialization is
 restored.
 
-Lastly, a memory image processor also services queries. 
+![Bank](docs/kmemimg-4.png)
+
+Lastly (and importantly!), a memory image processor also services queries. 
 
 A _query_ is another type of event which, unlike commands, does not mutate system state. Importantly, _queries are 
 serviced in multi-threaded mode_ so querying the system is efficient and concurrent. Because in-memory access 
 is so fast, many queries can be satisfied without indexing. However, special-purpose, in-memory indexing can be 
 easily implemented as dictated by application requirements.
 
-The following class diagram summarizes the memory image processor:
+![Bank](docs/kmemimg-5.png)
+
+The following class diagram puts it all together:
 
 ![Memory Image](docs/kmemimg.png)
 
 👉 Because application restarts entail reprocessing the (potentially large) history of all mutating commands,
 _system snapshotting_ can be used to serialize the entire in-memory state on demand. This enables faster restarts
-at the expense of losing the ability to time-travel. Note, though, that for many an application such an optimization
-may bring more effort than benefit...
+at the expense of losing the ability to time-travel.
 
 ## Memory Image Processor in Kotlin
 
 The above class diagram is materialized in Kotlin as:
 
 ```kotlin
-interface Command {
-    fun applyTo(system: Any)
-}
-interface Query {
-    fun extractFrom(system: Any): Any?
-}
+interface Command { fun applyTo(system: Any) }
+
+interface Query { fun extractFrom(system: Any): Any? }
+
 interface EventSourcing {
     fun append(event: Any)
     fun <E> replay(eventConsumer: (E) -> Unit)
 }
+
 interface TxManager {
   fun begin()
   fun <T> remember(who: Any, what: String, value: T, undo: (T) -> Unit)
   fun rollback()
+  companion object: TxManager { ... } // thread-local tx
 }
 
 class MemoryImageProcessor(private val system: Any, 
@@ -289,7 +177,7 @@ class MemoryImageProcessor(private val system: Any,
             try {
                 eventSourcing.append(command) // Serialize; retry internally if needed
             } catch (e: Exception) {
-                // Note: no attempt to rollback: this is irrecoverable
+                // Note: no attempt to rollback: this is unrecoverable
                 logger.severe("Error persisting command: ${e.message ?: e.toString()}")
                 // No further processing; start over when serialization is restored
                 throw e
@@ -323,29 +211,13 @@ typealias Amount = BigDecimal
 data class Bank(val accounts: MutableMap<String, Account> = HashMap())
 
 data class Account(val id: String, val name: String) {
-    // Mutable property provides an initial value (Amount.ZERO) 
-    // and a validation rule (it >= Amount.ZERO) to have delegate
-    // mutate value and participate in transactions
-    var balance: Amount by TxDelegate(Amount.ZERO) { it >= Amount.ZERO }
-}
-
-/* 2) Application commands: CreateAccount, Deposit, Withdrawal, Transfer */
-interface BankCommand : Command {
-    fun applyTo(bank: Bank)
-    override fun applyTo(system: Any) = applyTo(system as Bank)
-}
-interface BankQuery : Query {
-    fun extractFrom(bank: Bank): Any?
-    override fun extractFrom(system: Any) = applyTo(system as Bank)
-}
-interface AccountCommand : BankCommand {
-    val accountId: String
-    fun applyTo(account: Account)
-    override fun applyTo(bank: Bank) {
-        applyTo(bank.accounts[accountId]!!)
+    var balance: Amount by TxDelegate(initialValue = Amount.ZERO) { 
+      // tiggers rollback on validation failure
+      it >= Amount.ZERO 
     }
 }
 
+/* 2) Application commands: CreateAccount, Deposit, Withdrawal, Transfer */
 data class CreateAccount(val id: String, val name: String) : BankCommand {
     override fun applyTo(bank: Bank) {
         bank.accounts[id] = Account(id, name)
@@ -363,7 +235,6 @@ data class Withdrawal(override val accountId: String,val amount: Amount) : Accou
 }
 data class Transfer(val fromAccountId: String, val toAccountId: String, val amount: Amount) : BankCommand {
     override fun applyTo(bank: Bank) {
-        // Operation order deliberately set to benefit from rollback...
         Deposit(toAccountId, amount).applyTo(bank)
         Withdrawal(fromAccountId, amount).applyTo(bank)
     }
