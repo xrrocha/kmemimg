@@ -39,11 +39,12 @@ class Transfer implements Command {
     + amount: Amount
     + applyTo(bank: Bank)
 }
-Transfer ..> Account: ...then increments balance >
-Transfer ..> Account: decrements balance... >
+Transfer ..> Account: ...then decrements balance >
+Transfer ..> Account: increments balance >
 note bottom of Transfer
-    bank[fromAccountId].balance -= amount
     bank[toAccountId].balance += amount
+    bank[fromAccountId].balance -= amount
+    // kaboom: insufficient funds!
 end note
 
 @enduml
