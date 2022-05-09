@@ -121,7 +121,7 @@ restored.
 
 ![Bank](docs/kmemimg-4.png)
 
-Lastly (and importantly!), a memory image processor also services queries. 
+Lastly (and crucially!), a memory image processor also services queries. 
 
 A _query_ is another type of event which, unlike commands, does not mutate system state. Importantly, _queries are 
 serviced in multi-threaded mode_ so querying the system is efficient and concurrent. Because in-memory access 
