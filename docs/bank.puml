@@ -38,12 +38,12 @@ together {
     }
     BankCommand <|.. AccountCommand
     AccountCommand ..> Account: modifies >
-    class Deposit extends AccountCommand {
+    class Deposit implements AccountCommand {
         + accountId: String
         + amount: Amount
     }
 
-    class Withdrawal extends AccountCommand {
+    class Withdrawal implements AccountCommand {
         + accountId: String
         + amount: Amount
     }
