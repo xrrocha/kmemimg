@@ -59,7 +59,7 @@ class MemImgProcessorTestIT {
         // Attempt to transfer beyond means...
         memimg2.execute(Transfer("janet", "john", Amount(1000)))
             .mapLeft { failure ->
-                assertContains(failure.errorMessage, "Invalid value for Account.balance")
+                assertContains(failure.errorMessage, "balance: Invalid value")
             }
             .map {
                 fail("df: Insufficient funds succeeded?")

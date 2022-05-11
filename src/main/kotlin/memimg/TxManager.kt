@@ -1,5 +1,9 @@
 package memimg
 
+import arrow.core.Either
+import arrow.core.getOrHandle
+import arrow.core.left
+import arrow.core.right
 import java.util.logging.Logger
 import kotlin.reflect.KProperty
 
@@ -36,19 +40,27 @@ interface TxManager {
     }
 }
 
-class TxDelegate<T>(initialValue: T, private val isValid: (T) -> Boolean) {
+class TxDelegate<T>(initialValue: T, private val validator: Validator<T>? = null) {
     private var value: T
     private val setter: (T) -> Unit = { value -> this.value = value }
 
+    constructor(initialValue: T, validation: (T) -> Boolean) : this(initialValue, object : Validator<T> {
+        override fun validate(value: T): Either<String, Unit> =
+            when {
+                value == null || validation(value) -> Unit.right()
+                else -> "Invalid value: $value".left()
+            }
+    })
+
     init {
-        require(isValid(initialValue)) { "Invalid initial value: $initialValue" }
+        validator?.validate(initialValue)?.getOrHandle { throw IllegalArgumentException(it) }
         value = initialValue
     }
 
     operator fun getValue(thisRef: Any, property: KProperty<*>): T = value
 
     operator fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
-        require(isValid(value)) { "Invalid value for ${thisRef::class.simpleName}.${property.name}: $value" }
+        validator?.validate(value)?.getOrHandle { throw IllegalArgumentException("${property.name}: $it") }
         TxManager.remember(thisRef, property.name, this.value, setter)
         setter(value)
     }
