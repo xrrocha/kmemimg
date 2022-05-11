@@ -10,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
-class MemImgTest {
+class MemImgProcessorTest {
 
     @Test
     fun `executes and serializes successful command`() {

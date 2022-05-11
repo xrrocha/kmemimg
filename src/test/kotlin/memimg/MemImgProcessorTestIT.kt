@@ -6,7 +6,7 @@ import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
-class MemImgTestIT {
+class MemImgProcessorTestIT {
     @Test
     fun `Builds and restores systems state with JSON file event sourcing`() {
         val file = File.createTempFile("bank", ".json")
