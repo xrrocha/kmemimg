@@ -9,12 +9,12 @@ interface EventStorage {
     fun append(event: Any)
 }
 
-interface LineConverter<T> {
+interface TextConverter<T> {
     fun parse(string: String): T
     fun format(value: T): String
 }
 
-open class LineFileEventStorage<E : Any, C : LineConverter<E>>(private val file: File, private val converter: C) :
+open class TextFileEventStorage<E : Any, C : TextConverter<E>>(private val file: File, private val converter: C) :
     EventStorage, AutoCloseable {
 
     private lateinit var out: PrintWriter

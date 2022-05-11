@@ -9,7 +9,10 @@ import java.io.InputStream
 import java.util.logging.LogManager
 
 fun initLogger() {
-    val resourceName = "logging.properties"
+    initLogger("logging.properties")
+}
+
+fun initLogger(resourceName: String) {
     openResource(resourceName)
         .map(LogManager.getLogManager()::readConfiguration)
         .getOrElse { throw IllegalStateException("Can't find resource $resourceName") }

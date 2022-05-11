@@ -1,7 +1,6 @@
 package memimg
 
 import java.util.logging.Logger
-import kotlin.concurrent.getOrSet
 import kotlin.reflect.KProperty
 
 interface TxManager {
@@ -12,9 +11,11 @@ interface TxManager {
 
     companion object : TxManager {
         private val logger = Logger.getLogger("TxManager")
-        private val journal = ThreadLocal<MutableMap<Pair<Any, String>, () -> Unit>>()
+        internal val journal = ThreadLocal<MutableMap<Pair<Any, String>, () -> Unit>>().apply {
+            set(mutableMapOf())
+        }
 
-        override fun begin() = journal.getOrSet { mutableMapOf() }.clear()
+        override fun begin() = journal.get().clear()
 
         // Used by mutable properties to participate in transaction
         override fun <T> remember(who: Any, what: String, value: T, undo: (T) -> Unit) {

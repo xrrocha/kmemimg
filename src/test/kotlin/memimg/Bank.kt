@@ -88,7 +88,7 @@ val bankJsonFormat = Json {
     }
 }
 
-object BankJsonConverter : LineConverter<BankCommand> {
+object BankJsonConverter : TextConverter<BankCommand> {
     override fun parse(string: String): BankCommand = bankJsonFormat.decodeFromString(string)
 
     // Ensure JSON content lies on a single line!

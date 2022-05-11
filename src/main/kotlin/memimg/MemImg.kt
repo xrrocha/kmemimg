@@ -16,7 +16,7 @@ interface Query {
 class MemImgProcessor(private val system: Any, private val eventStorage: EventStorage) : AutoCloseable {
 
     init {
-        synchronized(system) { eventStorage.replay<Command> { it.applyTo(system) } }
+        synchronized(system) { eventStorage.replay { command: Command -> command.applyTo(system) } }
     }
 
     fun execute(query: Query): Either<FailureOutcome, Any?> =

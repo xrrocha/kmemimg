@@ -1,84 +1,171 @@
 package memimg
 
+import arrow.core.getOrElse
+import arrow.core.getOrHandle
+import memimg.MemImgProcessor.CommandFailure
+import memimg.MemImgProcessor.SystemFailure
 import org.junit.jupiter.api.Test
-import java.io.File
-import kotlin.test.assertContains
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class MemImgTest {
+
     @Test
-    fun `Builds and restores systems state with JSON file event sourcing`() {
-        val file = File.createTempFile("bank", ".json")
-        val eventSourcing = LineFileEventStorage(file, BankJsonConverter)
-
-        val bank1 = Bank()
-        val memimg1 = MemImgProcessor(bank1, eventSourcing)
-
-        memimg1.execute(CreateAccount("janet", "Janet Doe"))
-        assertEquals(Amount.ZERO, bank1.accounts["janet"]!!.balance)
-
-        memimg1.execute(Deposit("janet", Amount(100)))
-        assertEquals(Amount(100), bank1.accounts["janet"]!!.balance)
-
-        memimg1.execute(Withdrawal("janet", Amount(10)))
-        assertEquals(Amount(90), bank1.accounts["janet"]!!.balance)
-
-        memimg1.execute(CreateAccount("john", "John Doe"))
-        assertEquals(Amount.ZERO, bank1.accounts["john"]!!.balance)
-
-        memimg1.execute(Deposit("john", Amount(50)))
-        assertEquals(Amount(50), bank1.accounts["john"]!!.balance)
-
-        memimg1.execute(Transfer("janet", "john", Amount(20)))
-        assertEquals(Amount(70), bank1.accounts["janet"]!!.balance)
-        assertEquals(Amount(70), bank1.accounts["john"]!!.balance)
-
+    fun `executes and serializes successful command`() {
+        val system1 = mutableListOf<Data>()
+        val eventStorage = MemoryEventStorage()
+        val memimg1 = MemImgProcessor(system1, eventStorage)
+        memimg1.execute(Data(0, "zero"))
+        memimg1.execute(Data(1, "one"))
         memimg1.close()
-
-        val bank2 = Bank()
-        val memimg2 = MemImgProcessor(bank2, eventSourcing)
-
-        // Look ma: system state restored from empty initial state and event sourcing!
-        assertEquals(Amount(70), bank2.accounts["janet"]!!.balance)
-        assertEquals(Amount(70), bank2.accounts["john"]!!.balance)
-
-        // Some random query; executes at in-memory speeds
-        memimg2.execute(object : BankQuery {
-            override fun extractFrom(bank: Bank) =
-                bank.accounts.values
-                    .filter { it.balance == Amount(70) }
-                    .map { it.name }
-                    .toSet()
-        })
-            .map {
-                assertEquals(setOf("Janet Doe", "John Doe"), it)
-            }
-            .mapLeft { fail("df: Failed query?") }
-
-        // Attempt to transfer beyond means...
-        memimg2.execute(Transfer("janet", "john", Amount(1000)))
-            .mapLeft { failure ->
-                assertContains(failure.errorMessage, "Invalid value for Account.balance")
-            }
-            .map {
-                fail("df: Insufficient funds succeeded?")
-            }
-
-        // Look ma: system state restored on failure after partial mutation
-        assertEquals(Amount(70), bank2.accounts["janet"]!!.balance)
-        assertEquals(Amount(70), bank2.accounts["john"]!!.balance)
-
-        memimg2.execute(Transfer("john", "janet", Amount(10)))
-        assertEquals(Amount(80), bank2.accounts["janet"]!!.balance)
-        assertEquals(Amount(60), bank2.accounts["john"]!!.balance)
-
-        memimg2.close()
+        @Suppress("UNCHECKED_CAST")
+        assertEquals(
+            listOf(Data(0, "zero"), Data(1, "one")),
+            eventStorage.buffer as List<Data>
+        )
     }
 
-    companion object {
-        init {
-            initLogger()
+    @Test
+    fun `initializes from previous commands`() {
+        val system1 = mutableListOf<Data>()
+        val eventStorage = MemoryEventStorage()
+        val memimg1 = MemImgProcessor(system1, eventStorage)
+        memimg1.execute(Data(0, "zero"))
+        memimg1.execute(Data(1, "one"))
+        memimg1.close()
+
+        val system2 = mutableListOf<Data>()
+        MemImgProcessor(system2, eventStorage)
+        assertEquals(system1, system2)
+    }
+
+    @Test
+    fun `fails on error loading from previous commands`() {
+        var flag = false
+
+        class DummyCommand : Command {
+            override fun applyTo(system: Any): Any? {
+                if (flag) {
+                    throw Exception("Kaboom!")
+                }
+                return null
+            }
         }
+
+        val eventStorage = MemoryEventStorage()
+        val memimg = MemImgProcessor("system", eventStorage)
+        memimg.execute(DummyCommand())
+        assertThrows<Exception> {
+            flag = true
+            MemImgProcessor("system", eventStorage)
+        }
+    }
+
+    @Test
+    fun `executes query`() {
+        val system1 = mutableListOf<Data>()
+        val eventStorage = MemoryEventStorage()
+        val memimg1 = MemImgProcessor(system1, eventStorage)
+        memimg1.execute(Data(0, "zero"))
+        memimg1.execute(Data(1, "one"))
+        val result = memimg1.execute(object : Query {
+            override fun extractFrom(system: Any): Any? =
+                @Suppress("UNCHECKED_CAST")
+                (system as MutableList<Data>)
+                    .find { it.id == 1 }
+        })
+        assertTrue(result.isRight())
+        assertEquals(Data(1, "one"), result.getOrElse { null })
+    }
+
+    @Test
+    fun `signals failure on failed query`() {
+        val system1 = mutableListOf<Data>()
+        val eventStorage = MemoryEventStorage()
+        val memimg1 = MemImgProcessor(system1, eventStorage)
+        memimg1.execute(Data(0, "zero"))
+        memimg1.execute(Data(1, "one"))
+        val result = memimg1.execute(object : Query {
+            override fun extractFrom(system: Any): Any? =
+                throw Exception("Kaboom!")
+        })
+        assertTrue(result.isLeft())
+        assertTrue(result.getOrHandle { it } is CommandFailure)
+        assertEquals("Kaboom!", result.getOrHandle { it.throwable.message })
+    }
+
+    @Test
+    fun `rolls back partial updates on failed command`() {
+        var cnt = 0
+        var flag = false
+
+        class DummyCommand : Command {
+            override fun applyTo(system: Any): Any? {
+                TxManager.remember(this, "cnt", cnt) { cnt = it }
+                cnt += 1
+                if (flag) {
+                    throw Exception("Kaboom!")
+                }
+                return null
+            }
+        }
+
+        val eventStorage = MemoryEventStorage()
+        val memimg = MemImgProcessor("system", eventStorage)
+        memimg.execute(DummyCommand())
+        assertEquals(1, cnt)
+        memimg.execute(DummyCommand())
+        assertEquals(2, cnt)
+        flag = true
+        memimg.execute(DummyCommand())
+            .map { fail() }
+            .mapLeft { assertEquals(2, cnt) }
+    }
+
+    @Test
+    fun `fails severely on serialization failure`() {
+        class DummyCommand : Command {
+            override fun applyTo(system: Any): Any? {
+                return null
+            }
+        }
+
+        val eventStorage = object : EventStorage {
+            override fun <E> replay(eventConsumer: (E) -> Unit) {}
+            override fun append(event: Any) {
+                throw Exception("Kaboom!")
+            }
+        }
+        val memimg = MemImgProcessor("system", eventStorage)
+        memimg.execute(DummyCommand())
+            .map { fail() }
+            .mapLeft {
+                assertTrue(it is SystemFailure)
+            }
+    }
+
+    @Test
+    fun `fails severely on rollback failure`() {
+        class DummyCommand : Command {
+            override fun applyTo(system: Any): Any? {
+                TxManager.remember(this, "cnt", 0) {
+                    throw Exception("Kaboom during rollback!")
+                }
+                throw Exception("Kaboom during command execution!")
+            }
+        }
+
+        val eventStorage = MemoryEventStorage()
+        val memimg = MemImgProcessor("system", eventStorage)
+        memimg.execute(DummyCommand())
+        memimg.execute(DummyCommand())
+            .map { fail() }
+            .mapLeft { assertTrue(it is SystemFailure) }
+    }
+
+    @Test
+    fun `closes underlying event storage on close`() {
     }
 }
