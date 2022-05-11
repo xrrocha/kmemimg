@@ -29,6 +29,7 @@ interface TxManager {
                 } catch (e: Exception) {
                     val (who, what) = whoWhat
                     logger.warning("Error retracting ${who::class.simpleName}.$what: ${e.message ?: e.toString()}")
+                    throw e
                 }
             }
     }

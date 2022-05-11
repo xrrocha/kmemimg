@@ -1,60 +1,70 @@
 package memimg
 
+import arrow.core.Either
+import arrow.core.flatMap
+import arrow.core.left
 import java.util.logging.Logger
 
 interface Command {
-    fun applyTo(system: Any)
+    fun applyTo(system: Any): Any?
 }
 
 interface Query {
     fun extractFrom(system: Any): Any?
 }
 
-class MemoryImageProcessor(private val system: Any, private val eventSourcing: EventSourcing) : AutoCloseable {
+class MemImgProcessor(private val system: Any, private val eventStorage: EventStorage) : AutoCloseable {
+
     init {
-        // Replay previously serialized events so as to restore in-memory system state
-        synchronized(this) { // Single-threaded
-            // Any failure is propagated and memory image processor is not instantiated
-            eventSourcing.replay<Command> { command -> command.applyTo(system) }
-        }
+        synchronized(system) { eventStorage.replay<Command>(::execute) }
     }
 
-    fun execute(command: Command): Unit = synchronized(this) { // Single-threaded
-        TxManager.begin()
-        try {
-            command.applyTo(system) // Try and apply command
+    fun execute(query: Query): Either<FailureOutcome, Any?> =
+        Either.catch { query.extractFrom(system) }
+            .mapLeft { CommandFailure(it, "executing query", query) }
+            .tapLeft { logger.finer(it.errorMessage) }
+
+    fun execute(command: Command): Either<FailureOutcome, Any?> =
+        synchronized(this) {
             try {
-                eventSourcing.append(command) // Serialize; retry internally if needed
-            } catch (e: Exception) {
-                // Note: no attempt to rollback: this is irrecoverable
-                logger.severe("Error persisting command: ${e.message ?: e.toString()}")
-                // Give up: no further processing; start over when serialization is restored
-                throw e
+                TxManager.begin()
+                Either.catch { command.applyTo(system) }
+                    .mapLeft { CommandFailure(it, "executing command", command) }
+                    .tapLeft {
+                        logger.finer(it.errorMessage)
+                        TxManager.rollback()
+                    }
+                    .flatMap { result ->
+                        Either.catch { eventStorage.append(command) }
+                            .mapLeft { SystemFailure(it, "serializing command", command) }
+                            .tapLeft { logger.severe(it.errorMessage) }
+                            .map { result }
+                    }
+            } catch (t: Throwable) {
+                val errorMessage = t.message ?: t.toString()
+                logger.severe("Error executing command: $errorMessage")
+                SystemFailure(t, "managing transaction ($errorMessage)", command).left()
             }
-        } catch (e: Exception) {
-            TxManager.rollback() // Undo any partial mutation
-            val errorMessage = "Error executing command: ${e.message ?: e.toString()}"
-            // It's (kinda) ok for a command to fail
-            // Re-throw as «CommandApplicationException» and go on
-            logger.warning(errorMessage)
-            throw CommandApplicationException(errorMessage, e)
         }
+
+    abstract class FailureOutcome(val throwable: Throwable, context: String, source: Any) {
+        val errorMessage = "Error while $context ${source::class.simpleName}: ${throwable.message}"
+
+        override fun toString(): String = errorMessage
     }
 
-    fun execute(query: Query): Any? = query.extractFrom(system) // Can be multi-threaded
+    class CommandFailure(throwable: Throwable, context: String, source: Any) :
+        FailureOutcome(throwable, context, source)
+
+    class SystemFailure(throwable: Throwable, context: String, source: Any) : FailureOutcome(throwable, context, source)
 
     override fun close() {
-        if (eventSourcing is AutoCloseable) {
-            eventSourcing.close()
+        if (eventStorage is AutoCloseable) {
+            eventStorage.close()
         }
     }
 
     companion object {
-        private var logger = Logger.getLogger("MemoryImage")
+        private var logger = Logger.getLogger(MemImgProcessor::class.qualifiedName)
     }
-}
-
-// This exception signals the a *recoverable*, command-related error conditions
-class CommandApplicationException(message: String, cause: Exception): Exception(message, cause) {
-    constructor(cause: Exception): this(cause.message ?: cause.toString(), cause)
 }

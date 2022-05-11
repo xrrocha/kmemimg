@@ -4,7 +4,7 @@ import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
 
-interface EventSourcing {
+interface EventStorage {
     fun <E> replay(eventConsumer: (E) -> Unit)
     fun append(event: Any)
 }
@@ -14,8 +14,8 @@ interface LineConverter<T> {
     fun format(value: T): String
 }
 
-open class LineFileEventSourcing<E : Any, C : LineConverter<E>>(private val file: File, private val converter: C) :
-    EventSourcing, AutoCloseable {
+open class LineFileEventStorage<E : Any, C : LineConverter<E>>(private val file: File, private val converter: C) :
+    EventStorage, AutoCloseable {
 
     private lateinit var out: PrintWriter
 
@@ -39,10 +39,5 @@ open class LineFileEventSourcing<E : Any, C : LineConverter<E>>(private val file
     @Suppress("UNCHECKED_CAST")
     override fun append(event: Any) = out.println(converter.format(event as E))
 
-    override fun close() {
-        try {
-            out.close()
-        } catch (_: Exception) {
-        }
-    }
+    override fun close() = out.close()
 }
