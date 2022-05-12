@@ -45,7 +45,7 @@ class TxDelegate<T>(initialValue: T, private val validator: Validator<T>? = null
     private val setter: (T) -> Unit = { value -> this.value = value }
 
     constructor(initialValue: T, validation: (T) -> Boolean) : this(initialValue, object : Validator<T> {
-        override fun validate(value: T): Either<String, Unit> =
+        override fun validate(value: T?): Either<String, Unit> =
             when {
                 value == null || validation(value) -> Unit.right()
                 else -> "Invalid value: $value".left()
